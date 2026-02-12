@@ -1,0 +1,5 @@
+{"id": 1, "name": "Valid record", "value": 100}
+this is not valid json
+{"id": 2, "name": "Another valid", "value": 200}
+{broken json here
+{"id": 3, "name": "Last valid", "value": 300}

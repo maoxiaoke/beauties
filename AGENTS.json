@@ -1,0 +1,281 @@
+{
+	"instructions": "You have a good taste in design",
+	"workflows": [
+		"选择一个未完成的 feature",
+		"根据需求内容进行合理实现",
+		"Test every feature with Playwright (Screenshots/Console errors/Terminals errors)",
+		"验证成功后，summarize what you have done in what-you-have-done",
+		"提交 PR"
+	],
+	"product": {
+		"name": "Beauties — JSON/JSONL Visualizer",
+		"tagline": "A beautiful, fast, privacy-first JSON/JSONL file viewer",
+		"summary": "A client-side JSON/JSONL visualizer that lets users drag-and-drop files, paste from clipboard, and instantly explore data through multiple views — table, tree, and raw. No server upload, no signup, no friction. Built with Next.js, Tailwind CSS 4, and Hexta UI.",
+		"target-users": [
+			"ML engineers reviewing training data / fine-tuning datasets",
+			"Backend developers inspecting log files",
+			"Data engineers validating pipeline outputs",
+			"Anyone who opens .jsonl files regularly"
+		],
+		"design-principles": [
+			"Zero friction — drag a file, see your data instantly",
+			"Privacy first — everything runs client-side, no data leaves the browser",
+			"Performance — handle large files (100k+ lines) via virtualized rendering",
+			"Multi-view — table, tree, and raw views for different mental models",
+			"Beautiful defaults — dark mode, tasteful typography, subtle animations",
+			"Keyboard-friendly — power users should never need the mouse"
+		],
+		"ux-flow": [
+			"1. User lands on a clean page with a prominent drop zone and a 'Choose File' button",
+			"2. User drags a .jsonl file onto the page (or clicks to browse)",
+			"3. File is parsed client-side, a summary appears: filename, line count, detected schema",
+			"4. Data is displayed in Table View by default (auto-detected columns from JSON keys)",
+			"5. User can switch between Table / Tree / Raw views via tabs",
+			"6. User can search, filter, and navigate records",
+			"7. User can click any row to see its full detail in a side panel or modal"
+		]
+	},
+	"features": [
+		{
+			"id": "F001",
+			"category": "feat",
+			"description": "Project scaffolding — initialize a Next.js app with Tailwind CSS 4, Hexta UI, and the base layout",
+			"details": [
+				"Initialize Next.js project using the mono-repo tech stack (Next.js, Tailwind CSS 4, Biome, Hexta UI)",
+				"Create root layout with dark/light theme support (default to dark)",
+				"Use clean sans-serif font stack (Geist or Inter)",
+				"Set up globals.css with Hexta UI theme variables",
+				"Create a minimal landing page with the app name and drop zone placeholder"
+			],
+			"what-you-have-done": "Initialized Next.js 16 with Tailwind CSS v4, Geist fonts, next-themes for dark/light mode, custom OKLCH color variables, and custom syntax highlighting tokens. Created root layout and landing page with drop zone.",
+			"passes": true
+		},
+		{
+			"id": "F002",
+			"category": "feat",
+			"description": "File upload — drag-and-drop and file picker to load .jsonl files client-side",
+			"details": [
+				"Large centered drop zone with dashed border, icon, and instructional text",
+				"Drop zone animates on drag-over (border color change, subtle scale)",
+				"Click-to-browse fallback with hidden file input accepting .jsonl,.json,.ndjson",
+				"Parse file client-side using FileReader + line-by-line JSON.parse",
+				"Show parsing progress for large files (progress bar or line count)",
+				"Handle errors gracefully: malformed lines get flagged but don't break the whole file",
+				"After loading, display file summary: filename, total records, file size, and detected top-level keys",
+				"Allow loading a new file at any time (replaces current data)"
+			],
+			"what-you-have-done": "Built full-viewport drop zone with drag-over animations, FileReader parsing with progress bar, graceful error handling for malformed lines, and file summary display. Fixed drag flicker using ref counter pattern.",
+			"passes": true
+		},
+		{
+			"id": "F003",
+			"category": "feat",
+			"description": "Table View — display JSONL records as a sortable, resizable data table",
+			"details": [
+				"Auto-detect columns from the union of all top-level JSON keys across records",
+				"Virtualized rows for performance (only render visible rows, handle 100k+ records smoothly)",
+				"Fixed header row that stays visible on scroll",
+				"Columns are resizable by dragging column edges",
+				"Click column header to sort ascending/descending/none",
+				"Nested objects and arrays shown as collapsed chips (e.g. '{3 keys}' or '[5 items]') — click to expand inline or in detail panel",
+				"Row numbers displayed in a fixed left column",
+				"Alternating row backgrounds for readability",
+				"Hover highlight on rows",
+				"Click a row to open the record detail view"
+			],
+			"what-you-have-done": "Implemented using @tanstack/react-table + @tanstack/react-virtual. Auto-detects columns, handles 100k+ records with virtualization, supports sorting and column resizing. Nested objects/arrays shown as chips. Fixed header with backdrop blur and subtle shadow.",
+			"passes": true
+		},
+		{
+			"id": "F004",
+			"category": "feat",
+			"description": "Tree View — display each record as a collapsible JSON tree",
+			"details": [
+				"Navigate between records with Previous/Next buttons and a record index input",
+				"Each record rendered as an interactive JSON tree with expand/collapse nodes",
+				"Syntax highlighting: distinct colors for strings, numbers, booleans, null, keys",
+				"Collapse/expand all button",
+				"Copy individual values on click or via context action",
+				"Smooth transitions when expanding/collapsing nodes"
+			],
+			"what-you-have-done": "Built recursive JSON tree with expand/collapse functionality, syntax highlighting for all JSON types, record navigation (prev/next/index), expand/collapse all toggle, and copy-on-hover. Extracted NavButton and ToolbarButton components.",
+			"passes": true
+		},
+		{
+			"id": "F005",
+			"category": "feat",
+			"description": "Raw View — syntax-highlighted raw JSONL text with line numbers",
+			"details": [
+				"Display the raw JSONL content with line numbers",
+				"Syntax highlighting for JSON tokens",
+				"Virtualized rendering so it handles large files without lag",
+				"Click a line to select/highlight it and show its parsed detail",
+				"Copy button to copy the entire raw content or selected lines",
+				"Word wrap toggle"
+			],
+			"what-you-have-done": "Implemented virtualized raw text view with custom JSON tokenizer for syntax highlighting, dynamic gutter width based on line count, click-to-detail, word wrap toggle, and copy-all button. Error lines marked with red gutter.",
+			"passes": true
+		},
+		{
+			"id": "F006",
+			"category": "feat",
+			"description": "View switcher — tabs to toggle between Table, Tree, and Raw views",
+			"details": [
+				"Tab bar with Table / Tree / Raw options, positioned above the data area",
+				"Smooth transition when switching views (no jarring re-render)",
+				"Remember the last used view in localStorage",
+				"Each view maintains its own scroll position independently",
+				"Keyboard shortcut: ⌘1/⌘2/⌘3 to switch views"
+			],
+			"what-you-have-done": "Built tab bar with keyboard shortcuts displayed inline (⌘1, ⌘2, ⌘3), localStorage persistence, smooth transitions, and proper ARIA roles. Active tab has subtle box-shadow for depth.",
+			"passes": true
+		},
+		{
+			"id": "F007",
+			"category": "feat",
+			"description": "Search and filter — find records by key or value across the dataset",
+			"details": [
+				"Global search bar (⌘K or ⌘F to focus) that searches across all record values",
+				"Show match count ('23 of 1,402 records match')",
+				"Highlight matching text in the current view",
+				"Filter the dataset to only show matching records",
+				"Clear search button and Escape key to reset",
+				"Search is debounced for performance on large datasets"
+			],
+			"what-you-have-done": "Built global search with ⌘K shortcut, match count display, real-time filtering, debounced search for performance, clear button that refocuses input, and Escape key support. Search expands from w-56 to w-72 on focus.",
+			"passes": true
+		},
+		{
+			"id": "F008",
+			"category": "feat",
+			"description": "Record detail panel — expanded view of a single record",
+			"details": [
+				"Slide-over panel or modal that shows a single record in full detail",
+				"Pretty-printed JSON with syntax highlighting",
+				"Copy JSON button (formatted or minified)",
+				"Navigate to previous/next record within the panel",
+				"Close with Escape key or clicking outside",
+				"Show record index (e.g. 'Record 42 of 1,402')"
+			],
+			"what-you-have-done": "Implemented slide-over panel with custom slide-in animation (0.2s spring curve), backdrop blur, syntax-highlighted JSON, copy formatted/minified buttons, prev/next navigation (↑/↓ arrows), Escape key close, and proper ARIA dialog roles. Extracted PanelButton and CopyButton components.",
+			"passes": true
+		},
+		{
+			"id": "F009",
+			"category": "feat",
+			"description": "Dark mode and theme — polished visual design with dark/light toggle",
+			"details": [
+				"Default to dark mode (matches developer tooling aesthetic)",
+				"Light/dark toggle button in the header",
+				"Persist preference in localStorage",
+				"Smooth transition between themes (no flash of wrong theme on load)",
+				"Color palette: muted, professional tones — not garish. Think: VS Code dark theme meets Linear app",
+				"Subtle background texture or gradient to avoid flatness"
+			],
+			"what-you-have-done": "Implemented dark mode by default using next-themes with localStorage persistence, theme toggle in header, purple-tinted selection color, custom thin scrollbars, and subtle dot-pattern background for texture. Custom animations using spring-like cubic-bezier curves.",
+			"passes": true
+		},
+		{
+			"id": "F010",
+			"category": "feat",
+			"description": "Header and layout — app chrome with branding, file info, and controls",
+			"details": [
+				"Minimal header: app name/logo on the left, file info in center, theme toggle + help on right",
+				"When no file is loaded, the entire viewport is the drop zone",
+				"When a file is loaded, the header appears with file name and record count",
+				"Responsive layout that works on tablet and desktop (mobile is read-only friendly)",
+				"Footer or status bar showing: records count, file size, parse time"
+			],
+			"what-you-have-done": "Built minimal header with backdrop blur, Braces logo icon, file name truncation with tooltip, and extracted HeaderButton component. Status bar with dot separators, tabular-nums for aligned numbers, and proper visual hierarchy. Full-viewport drop zone when no file loaded.",
+			"passes": true
+		},
+		{
+			"id": "F011",
+			"category": "feat",
+			"description": "Keyboard shortcuts — power-user navigation without touching the mouse",
+			"details": [
+				"⌘K or ⌘F — Focus search",
+				"⌘1/⌘2/⌘3 — Switch to Table/Tree/Raw view",
+				"↑/↓ — Navigate between records (in tree view or detail panel)",
+				"Escape — Close detail panel, clear search, or dismiss dialogs",
+				"⌘D — Toggle dark/light mode",
+				"? — Show keyboard shortcut help overlay"
+			],
+			"what-you-have-done": "Implemented all keyboard shortcuts (⌘K/⌘F search, ⌘1/2/3 view switching, ⌘D theme toggle, ? help overlay, ↑/↓ navigation, Escape close/clear). Built keyboard help modal with scale-up animation, key badges with pressed-key shadow effect, and proper ARIA roles.",
+			"passes": true
+		},
+		{
+			"id": "F012",
+			"category": "feat",
+			"description": "Error handling — graceful handling of malformed lines and edge cases",
+			"details": [
+				"Malformed JSON lines are flagged with a warning badge but don't break parsing",
+				"Show error count in the file summary ('3 malformed lines')",
+				"In table view, malformed rows are highlighted in a warning color",
+				"In raw view, malformed lines get a red gutter marker",
+				"Empty files show a friendly empty state",
+				"Files that aren't JSONL at all show a clear error message with format guidance"
+			],
+			"what-you-have-done": "Implemented graceful error handling for malformed lines (flagged but don't break parsing), error count in file summary and status bar, warning highlights in table view, red gutter markers in raw view, empty states with Inbox icon, and helpful error messages for invalid files.",
+			"passes": true
+		},
+		{
+			"id": "F013",
+			"category": "feat",
+			"description": "Clipboard paste support — paste JSONL/JSON data directly from clipboard",
+			"details": [
+				"Add 'Paste from clipboard' button on drop zone with clipboard icon",
+				"Keyboard shortcut: ⌘V (Ctrl+V on Windows) when drop zone is focused",
+				"Use navigator.clipboard.readText() API to read clipboard content",
+				"Parse pasted text using same parser as file upload",
+				"Handle permissions gracefully with helpful error messages",
+				"Handle empty clipboard and invalid JSON errors",
+				"Display data in viewer after successful parse"
+			],
+			"what-you-have-done": "Added 'Paste from clipboard' button with ⌘V hint, implemented ⌘V/Ctrl+V keyboard shortcut (only fires when not in input field), uses navigator.clipboard.readText() API, handles permissions/empty clipboard/errors gracefully, integrates with existing parser using filename 'clipboard-paste.jsonl'. Tested with 11 Playwright tests, all passing.",
+			"passes": true
+		},
+		{
+			"id": "F014",
+			"category": "feat",
+			"description": "JSON file support — handle .json files in addition to .jsonl",
+			"details": [
+				"Update file input to accept .json files",
+				"Smart format detection: detect if content is JSON array, single object, or JSONL",
+				"JSON array: treat each element as a record",
+				"Single JSON object: treat as one record",
+				"JSONL (newline-delimited): existing line-by-line parsing",
+				"Update drop zone text to mention 'JSON or JSONL files'",
+				"Handle invalid JSON files with clear error messages"
+			],
+			"what-you-have-done": "Updated parser (lib/parse-jsonl.ts) with smart format detection: JSON array → each element becomes a record, single JSON object → one record, otherwise → JSONL line-by-line parsing. Updated drop zone text to 'Drop a JSON or JSONL file here'. File input accepts .json files. Tested with 14 Playwright tests covering arrays, single objects, and invalid JSON, all passing.",
+			"passes": true
+		}
+	],
+	"design-direction": {
+		"aesthetic": "Minimal, developer-tool aesthetic. Think: the lovechild of Linear, Raycast, and VS Code. Dark surfaces, crisp typography, generous whitespace, and micro-interactions that feel intentional.",
+		"color-palette": {
+			"dark-bg": "Near-black with a hint of blue (like #0A0A0F)",
+			"surface": "Slightly elevated cards with subtle borders (#1A1A2E or similar)",
+			"accent": "A single vibrant accent color for interactive elements — electric blue or soft violet",
+			"text-primary": "Off-white (#E5E5E5) for main content",
+			"text-secondary": "Muted gray (#888) for labels and metadata",
+			"syntax-colors": "Distinct but harmonious colors for JSON types: strings=green, numbers=orange, booleans=purple, null=gray, keys=blue"
+		},
+		"typography": {
+			"ui-font": "Geist Sans or Inter — clean, modern, excellent for data",
+			"code-font": "Geist Mono or JetBrains Mono — for JSON content and raw view",
+			"scale": "14px base for data, 13px for secondary info, 12px for metadata"
+		},
+		"interactions": {
+			"transitions": "150ms ease-out for most state changes",
+			"hover-states": "Subtle background shift, never jarring",
+			"drop-zone": "Dashed border animates to solid accent color on drag-over, gentle scale-up",
+			"loading": "Skeleton screens or subtle shimmer, never a spinner blocking the whole view"
+		}
+	},
+	"resources": [
+		["Tech Stack of this app", "../../.docs/web.tech.stack.txt"],
+		["Components and Blocks of Hexta_UI", "../../.docs/hexta-ui/index.txt"]
+	]
+}

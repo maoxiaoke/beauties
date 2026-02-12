@@ -1,0 +1,11 @@
+{"id": 1, "name": "Alice Johnson", "email": "alice@example.com", "age": 32, "role": "engineer", "active": true, "scores": [95, 87, 92], "metadata": {"team": "platform", "level": "senior"}}
+{"id": 2, "name": "Bob Smith", "email": "bob@example.com", "age": 28, "role": "designer", "active": true, "scores": [88, 91, 85], "metadata": {"team": "product", "level": "mid"}}
+{"id": 3, "name": "Carol Williams", "email": "carol@example.com", "age": 45, "role": "manager", "active": false, "scores": [78, 82, 90], "metadata": {"team": "platform", "level": "lead"}}
+this is a malformed line that should trigger an error
+{"id": 4, "name": "David Brown", "email": "david@example.com", "age": 35, "role": "engineer", "active": true, "scores": [92, 88, 95], "metadata": {"team": "infra", "level": "senior"}}
+{"id": 5, "name": "Eve Davis", "email": "eve@example.com", "age": null, "role": "intern", "active": true, "scores": [], "metadata": {"team": "product", "level": "junior"}}
+{"id": 6, "name": "Frank Miller", "email": "frank@example.com", "age": 29, "role": "engineer", "active": true, "scores": [90, 93, 87], "metadata": {"team": "platform", "level": "mid"}}
+{"id": 7, "name": "Grace Wilson", "email": "grace@example.com", "age": 41, "role": "designer", "active": false, "scores": [85, 80, 88], "metadata": {"team": "product", "level": "senior"}}
+{"id": 8, "name": "Henry Taylor", "email": "henry@example.com", "age": 33, "role": "engineer", "active": true, "scores": [91, 89, 94], "metadata": {"team": "infra", "level": "mid"}}
+{"id": 9, "name": "Ivy Anderson", "email": "ivy@example.com", "age": 27, "role": "designer", "active": true, "scores": [87, 92, 83], "metadata": {"team": "product", "level": "junior"}}
+{"id": 10, "name": "Jack Thomas", "email": "jack@example.com", "age": 38, "role": "manager", "active": true, "scores": [80, 85, 90], "metadata": {"team": "platform", "level": "lead"}}

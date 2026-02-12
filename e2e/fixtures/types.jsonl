@@ -1,0 +1,1 @@
+{"string": "hello", "number": 42, "float": 3.14, "bool_true": true, "bool_false": false, "null_val": null, "array": [1, 2, 3], "object": {"key": "value"}}
