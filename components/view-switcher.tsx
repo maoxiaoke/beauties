@@ -1,5 +1,6 @@
 "use client";
 
+import { motion } from "framer-motion";
 import { FileCode, Table, TreePine } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -39,24 +40,39 @@ export function ViewSwitcher({ view, onViewChange }: ViewSwitcherProps) {
 						onClick={() => onViewChange(v.value)}
 						className={cn(
 							"relative inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md",
-							"transition-all duration-150 ease-out",
+							"transition-colors duration-100",
 							"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
 							isActive
-								? "bg-background text-foreground shadow-[0_1px_2px_0_rgb(0_0_0/0.05)]"
+								? "text-foreground"
 								: "text-muted-foreground hover:text-foreground",
 						)}
 						title={v.shortcut}
 					>
-						<Icon className="w-3.5 h-3.5" />
-						{v.label}
-						<kbd
-							className={cn(
-								"hidden sm:inline text-[10px] font-[family-name:var(--font-geist-mono)] ml-0.5",
-								isActive ? "text-muted-foreground" : "text-muted-foreground/50",
-							)}
-						>
-							{v.shortcut}
-						</kbd>
+						{isActive && (
+							<motion.div
+								layoutId="active-tab-indicator"
+								className="absolute inset-0 bg-background shadow-[0_1px_3px_0_rgb(0_0_0/0.1)] rounded-md"
+								transition={{
+									type: "spring",
+									stiffness: 500,
+									damping: 40,
+								}}
+							/>
+						)}
+						<span className="relative z-10 flex items-center gap-1.5">
+							<Icon className="w-3.5 h-3.5" />
+							{v.label}
+							<kbd
+								className={cn(
+									"hidden sm:inline text-[10px] font-[family-name:var(--font-geist-mono)] ml-0.5",
+									isActive
+										? "text-muted-foreground"
+										: "text-muted-foreground/50",
+								)}
+							>
+								{v.shortcut}
+							</kbd>
+						</span>
 					</button>
 				);
 			})}
