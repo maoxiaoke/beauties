@@ -24,13 +24,12 @@ function meta(page: Page) {
 test.describe("F002 – File upload", () => {
 	test("shows drop zone on initial load", async ({ page }) => {
 		await page.goto("/");
-		await expect(page.getByText("Drop a JSON or JSONL file here")).toBeVisible();
+		await expect(page.getByText("Drop your file here")).toBeVisible();
 		await expect(
-			page.getByText("or click to browse — .jsonl, .json, .ndjson"),
+			page.getByText("or click to browse"),
 		).toBeVisible();
-		await expect(
-			page.getByText("Everything runs client-side"),
-		).toBeVisible();
+		// Stats section is visible
+		await expect(page.getByText("browser")).toBeVisible();
 	});
 
 	test("loads file via click-to-browse", async ({ page }) => {
@@ -497,7 +496,7 @@ test.describe("F010 – Header & layout", () => {
 		// Click "New file" button
 		await page.getByLabel("Load a different file").click();
 		// Should go back to drop zone
-		await expect(page.getByText("Drop a JSON or JSONL file here")).toBeVisible();
+		await expect(page.getByText("Drop your file here")).toBeVisible();
 	});
 
 	test("displays Beauties branding", async ({ page }) => {
@@ -771,7 +770,7 @@ test.describe("Accessibility", () => {
 	test("file input has accessible label", async ({ page }) => {
 		await page.goto("/");
 		const input = page.locator('input[type="file"]');
-		await expect(input).toHaveAttribute("aria-label", "Select a JSONL file");
+		await expect(input).toHaveAttribute("aria-label", "Select a JSON or JSONL file");
 	});
 
 	test("view tabs have proper ARIA roles", async ({ page }) => {

@@ -17,7 +17,7 @@ async function loadFile(page: Page, fixtureName: string) {
 test.describe("Clipboard paste – Drop zone UI", () => {
 	test("paste button is visible on drop zone", async ({ page }) => {
 		await page.goto("/");
-		await expect(page.getByText("Paste from clipboard")).toBeVisible();
+		await expect(page.getByText("Paste").first()).toBeVisible();
 	});
 
 	test("paste button shows ⌘V hint", async ({ page }) => {
@@ -48,7 +48,7 @@ test.describe("Clipboard paste – Paste via button", () => {
 		await page.evaluate((text) => navigator.clipboard.writeText(text), jsonlData);
 
 		// Click paste button
-		await page.getByText("Paste from clipboard").click();
+		await page.getByRole("button", { name: /Paste/ }).click();
 
 		// Should load and display the data
 		await page.waitForSelector("header", { timeout: 10_000 });
@@ -72,7 +72,7 @@ test.describe("Clipboard paste – Paste via button", () => {
 		]);
 		await page.evaluate((text) => navigator.clipboard.writeText(text), jsonArray);
 
-		await page.getByText("Paste from clipboard").click();
+		await page.getByRole("button", { name: /Paste/ }).click();
 		await page.waitForSelector("header", { timeout: 10_000 });
 		await expect(page.locator("header").getByText("3 records")).toBeVisible();
 		await expect(page.getByText("NYC").first()).toBeVisible();
@@ -88,7 +88,7 @@ test.describe("Clipboard paste – Paste via button", () => {
 		const singleObj = JSON.stringify({ name: "Solo", score: 99 });
 		await page.evaluate((text) => navigator.clipboard.writeText(text), singleObj);
 
-		await page.getByText("Paste from clipboard").click();
+		await page.getByRole("button", { name: /Paste/ }).click();
 		await page.waitForSelector("header", { timeout: 10_000 });
 		await expect(page.locator("header").getByText("1 record")).toBeVisible();
 		await expect(page.getByText("Solo").first()).toBeVisible();
@@ -104,7 +104,7 @@ test.describe("Clipboard paste – Paste via button", () => {
 		// Set clipboard to empty string
 		await page.evaluate(() => navigator.clipboard.writeText(""));
 
-		await page.getByText("Paste from clipboard").click();
+		await page.getByRole("button", { name: /Paste/ }).click();
 		await page.waitForTimeout(500);
 		await expect(page.getByText("Clipboard is empty")).toBeVisible();
 	});
@@ -119,7 +119,7 @@ test.describe("Clipboard paste – Paste via button", () => {
 		const malformed = '{"id": 1, "name": "Valid"}\nthis is bad\n{"id": 2, "name": "AlsoValid"}';
 		await page.evaluate((text) => navigator.clipboard.writeText(text), malformed);
 
-		await page.getByText("Paste from clipboard").click();
+		await page.getByRole("button", { name: /Paste/ }).click();
 		await page.waitForSelector("header", { timeout: 10_000 });
 		// Should load with errors
 		await expect(page.locator("header").getByText("3 records")).toBeVisible();
@@ -136,7 +136,7 @@ test.describe("Clipboard paste – Paste via button", () => {
 		const data = '{"id": 1, "name": "ViewTest", "active": true}';
 		await page.evaluate((text) => navigator.clipboard.writeText(text), data);
 
-		await page.getByText("Paste from clipboard").click();
+		await page.getByRole("button", { name: /Paste/ }).click();
 		await page.waitForSelector("header", { timeout: 10_000 });
 
 		// Table view (default)
@@ -158,7 +158,7 @@ test.describe("Clipboard paste – Paste via button", () => {
 		const data = '{"id": 1, "name": "PastedAlice", "role": "engineer"}\n{"id": 2, "name": "PastedBob", "role": "designer"}';
 		await page.evaluate((text) => navigator.clipboard.writeText(text), data);
 
-		await page.getByText("Paste from clipboard").click();
+		await page.getByRole("button", { name: /Paste/ }).click();
 		await page.waitForSelector("header", { timeout: 10_000 });
 		await page.waitForTimeout(500);
 		await page.screenshot({
@@ -182,7 +182,7 @@ test.describe("Clipboard paste – Console errors", () => {
 		const data = '{"id": 1, "name": "Test"}';
 		await page.evaluate((text) => navigator.clipboard.writeText(text), data);
 
-		await page.getByText("Paste from clipboard").click();
+		await page.getByRole("button", { name: /Paste/ }).click();
 		await page.waitForSelector("header", { timeout: 10_000 });
 
 		// Switch views
@@ -331,7 +331,7 @@ test.describe("JSON file – Drop zone text updated", () => {
 	}) => {
 		await page.goto("/");
 		await expect(
-			page.getByText("Drop a JSON or JSONL file here"),
+			page.getByText("Drop your file here"),
 		).toBeVisible();
 	});
 });

@@ -3,12 +3,15 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ParseResult } from "@/lib/parse-jsonl";
 import { parseJsonl } from "@/lib/parse-jsonl";
+import type { SqliteDatabase } from "@/lib/parse-sqlite";
+import { isSqliteFile, openSqliteDatabase } from "@/lib/parse-sqlite";
 import { DropZone } from "./drop-zone";
 import { AppHeader } from "./header";
 import { KeyboardHelp } from "./keyboard-help";
 import { RawView } from "./raw-view";
 import { RecordDetail } from "./record-detail";
 import { SearchBar } from "./search-bar";
+import { SqliteViewer } from "./sqlite-viewer";
 import { TableView } from "./table-view";
 import { TreeView } from "./tree-view";
 import { ViewSwitcher } from "./view-switcher";
@@ -25,6 +28,13 @@ export function JsonlViewer() {
 	const [file, setFile] = useState<FileInfo | null>(null);
 	const [parseResult, setParseResult] = useState<ParseResult | null>(null);
 	const [parseTime, setParseTime] = useState(0);
+
+	// SQLite state
+	const [sqliteDb, setSqliteDb] = useState<SqliteDatabase | null>(null);
+	const [sqliteFileName, setSqliteFileName] = useState("");
+	const [sqliteFileSize, setSqliteFileSize] = useState(0);
+	const [sqliteLoadTime, setSqliteLoadTime] = useState(0);
+	const [sqliteError, setSqliteError] = useState<string | null>(null);
 
 	const [view, setView] = useState<ViewType>(() => {
 		if (typeof window !== "undefined") {
@@ -55,6 +65,35 @@ export function JsonlViewer() {
 			setSelectedRecord(null);
 			setDetailOpen(false);
 			setSearchQuery("");
+			// Clear SQLite state
+			if (sqliteDb) {
+				sqliteDb.db.close();
+				setSqliteDb(null);
+			}
+		},
+		[sqliteDb],
+	);
+
+	const handleSqliteLoad = useCallback(
+		async (name: string, size: number, buffer: ArrayBuffer) => {
+			setSqliteError(null);
+			const start = performance.now();
+			try {
+				const db = await openSqliteDatabase(buffer);
+				const elapsed = performance.now() - start;
+				// Clear JSON state
+				setFile(null);
+				setParseResult(null);
+				// Set SQLite state
+				setSqliteDb(db);
+				setSqliteFileName(name);
+				setSqliteFileSize(size);
+				setSqliteLoadTime(elapsed);
+			} catch (e) {
+				setSqliteError(
+					e instanceof Error ? e.message : "Failed to open SQLite file",
+				);
+			}
 		},
 		[],
 	);
@@ -66,7 +105,15 @@ export function JsonlViewer() {
 		setSelectedRecord(null);
 		setDetailOpen(false);
 		setSearchQuery("");
-	}, []);
+		if (sqliteDb) {
+			sqliteDb.db.close();
+			setSqliteDb(null);
+		}
+		setSqliteFileName("");
+		setSqliteFileSize(0);
+		setSqliteLoadTime(0);
+		setSqliteError(null);
+	}, [sqliteDb]);
 
 	// Search filtering
 	const filteredRecords = useMemo(() => {
@@ -159,9 +206,32 @@ export function JsonlViewer() {
 	}, [file, detailOpen, searchQuery, showKeyboardHelp, handleNavigateRecord]);
 
 	// No file loaded - show drop zone
-	if (!file || !parseResult) {
-		return <DropZone onFileLoad={handleFileLoad} />;
+	if ((!file || !parseResult) && !sqliteDb) {
+		return (
+			<DropZone
+				onFileLoad={handleFileLoad}
+				onSqliteLoad={handleSqliteLoad}
+				sqliteError={sqliteError}
+			/>
+		);
 	}
+
+	// SQLite file loaded
+	if (sqliteDb) {
+		return (
+			<SqliteViewer
+				sqliteDb={sqliteDb}
+				fileName={sqliteFileName}
+				fileSize={sqliteFileSize}
+				loadTime={sqliteLoadTime}
+				onReset={handleReset}
+			/>
+		);
+	}
+
+	// At this point, file and parseResult must be non-null
+	// (the early returns above cover all null cases)
+	if (!file || !parseResult) return null;
 
 	const selectedData =
 		selectedRecord !== null

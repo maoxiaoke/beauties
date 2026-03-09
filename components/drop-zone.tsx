@@ -12,6 +12,8 @@ import { cn } from "@/lib/utils";
 
 interface DropZoneProps {
 	onFileLoad: (name: string, size: number, text: string) => void;
+	onSqliteLoad?: (name: string, size: number, buffer: ArrayBuffer) => void;
+	sqliteError?: string | null;
 }
 
 // ─── Phrases that cycle through the typewriter ────────────────────────────────
@@ -59,7 +61,7 @@ const TypewriterCycler = memo(function TypewriterCycler() {
 	}, [displayed, phase, phraseIdx]);
 
 	return (
-		<span className="text-xs text-muted-foreground font-[family-name:var(--font-geist-mono)] leading-relaxed">
+		<span className="text-[13px] text-muted-foreground/70 font-[family-name:var(--font-geist-mono)] leading-relaxed">
 			{displayed}
 			<span
 				className="inline-block w-[1.5px] h-[0.85em] bg-primary/70 ml-[1px] align-middle"
@@ -133,7 +135,7 @@ const MagneticButton = memo(function MagneticButton({
 // ─── Stat cell ────────────────────────────────────────────────────────────────
 function StatCell({ label, value }: { label: string; value: string }) {
 	return (
-		<div className="flex flex-col gap-0.5">
+		<div className="flex flex-col gap-0.5 pl-3 border-l border-primary/20">
 			<span className="text-[9px] uppercase tracking-[0.12em] text-muted-foreground/40 font-[family-name:var(--font-geist-mono)]">
 				{label}
 			</span>
@@ -145,7 +147,12 @@ function StatCell({ label, value }: { label: string; value: string }) {
 }
 
 // ─── Main Drop Zone ───────────────────────────────────────────────────────────
-export function DropZone({ onFileLoad }: DropZoneProps) {
+function isSqliteExtension(name: string): boolean {
+	const lower = name.toLowerCase();
+	return lower.endsWith(".sqlite") || lower.endsWith(".db") || lower.endsWith(".sqlite3");
+}
+
+export function DropZone({ onFileLoad, onSqliteLoad, sqliteError }: DropZoneProps) {
 	const [isDragging, setIsDragging] = useState(false);
 	const [isLoading, setIsLoading] = useState(false);
 	const [progress, setProgress] = useState(0);
@@ -158,6 +165,32 @@ export function DropZone({ onFileLoad }: DropZoneProps) {
 			setError(null);
 			setIsLoading(true);
 			setProgress(0);
+
+			// SQLite files need binary reading
+			if (isSqliteExtension(file.name) && onSqliteLoad) {
+				const reader = new FileReader();
+				reader.onprogress = (e) => {
+					if (e.lengthComputable) {
+						setProgress(Math.round((e.loaded / e.total) * 100));
+					}
+				};
+				reader.onload = (e) => {
+					const buffer = e.target?.result as ArrayBuffer;
+					if (!buffer || buffer.byteLength === 0) {
+						setError("File is empty");
+						setIsLoading(false);
+						return;
+					}
+					setIsLoading(false);
+					onSqliteLoad(file.name, file.size, buffer);
+				};
+				reader.onerror = () => {
+					setError("Failed to read file");
+					setIsLoading(false);
+				};
+				reader.readAsArrayBuffer(file);
+				return;
+			}
 
 			const reader = new FileReader();
 
@@ -185,7 +218,7 @@ export function DropZone({ onFileLoad }: DropZoneProps) {
 
 			reader.readAsText(file);
 		},
-		[onFileLoad],
+		[onFileLoad, onSqliteLoad],
 	);
 
 	const handleDrop = useCallback(
@@ -299,7 +332,7 @@ export function DropZone({ onFileLoad }: DropZoneProps) {
 					style={{ animation: "blob-drift-2 26s ease-in-out infinite" }}
 				/>
 				<div
-					className="absolute top-[35%] right-[15%] w-[32vw] h-[32vw] rounded-full bg-emerald-500 blur-[90px] opacity-[0.018] dark:opacity-[0.032]"
+					className="absolute top-[35%] right-[15%] w-[32vw] h-[32vw] rounded-full bg-cyan-500 blur-[90px] opacity-[0.018] dark:opacity-[0.032]"
 					style={{ animation: "blob-drift-3 18s ease-in-out infinite" }}
 				/>
 			</div>
@@ -314,6 +347,14 @@ export function DropZone({ onFileLoad }: DropZoneProps) {
 					backgroundSize: "28px 28px",
 				}}
 			/>
+
+			{/* ── Grain texture ── */}
+			<svg className="absolute inset-0 w-full h-full pointer-events-none opacity-[0.018] dark:opacity-[0.035]" aria-hidden>
+				<filter id="grain-texture">
+					<feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch" />
+				</filter>
+				<rect width="100%" height="100%" filter="url(#grain-texture)" />
+			</svg>
 
 			{/* ── Layout grid ── */}
 			<div className="relative z-10 min-h-[100dvh] flex items-center px-6 md:px-16 lg:px-24 max-w-[1400px] mx-auto">
@@ -330,28 +371,35 @@ export function DropZone({ onFileLoad }: DropZoneProps) {
 							variants={itemVariants}
 							className="flex items-center gap-2.5"
 						>
-							<Braces
-								className="w-4 h-4 text-primary"
-								strokeWidth={2.5}
-							/>
+							<div className="relative flex items-center justify-center">
+								<div className="absolute w-7 h-7 bg-primary/15 rounded-full blur-lg" />
+								<Braces
+									className="relative w-4 h-4 text-primary"
+									strokeWidth={2.5}
+								/>
+							</div>
 							<span className="text-sm font-semibold tracking-tight">
 								Beauties
 							</span>
-							<span className="text-[9px] text-muted-foreground/40 font-[family-name:var(--font-geist-mono)] border border-border/50 px-1.5 py-0.5 rounded-sm tracking-wider">
-								JSON
+							<span className="text-[9px] text-primary/50 font-[family-name:var(--font-geist-mono)] bg-primary/[0.06] border border-primary/15 px-1.5 py-0.5 rounded-sm tracking-wider">
+								DATA
 							</span>
 						</motion.div>
 
 						{/* Headline */}
 						<motion.div variants={itemVariants}>
-							<h1 className="text-[2.6rem] md:text-5xl font-semibold tracking-tighter leading-[1.04]">
-								JSON & JSONL
+							<h1 className="text-[2.8rem] md:text-[3.4rem] lg:text-[3.75rem] font-bold tracking-[-0.045em] leading-[0.95]">
+								<span className="bg-gradient-to-b from-foreground to-foreground/55 bg-clip-text text-transparent">
+									Data files
+								</span>
 								<br />
-								<span className="text-muted-foreground/55">
+								<span className="text-muted-foreground/30">
 									without the
 								</span>
 								<br />
-								friction.
+								<span className="bg-gradient-to-b from-foreground to-foreground/55 bg-clip-text text-transparent">
+									friction.
+								</span>
 							</h1>
 						</motion.div>
 
@@ -388,7 +436,7 @@ export function DropZone({ onFileLoad }: DropZoneProps) {
 						{/* Cockpit-density stats grid */}
 						<motion.div
 							variants={itemVariants}
-							className="grid grid-cols-2 gap-x-8 gap-y-4 border-t border-border/40 pt-5"
+							className="grid grid-cols-2 gap-x-8 gap-y-4 border-t border-border/20 pt-6"
 						>
 							<StatCell label="Max records" value="100k+" />
 							<StatCell label="Upload size" value="0 kb" />
@@ -398,7 +446,7 @@ export function DropZone({ onFileLoad }: DropZoneProps) {
 
 						{/* Error */}
 						<AnimatePresence>
-							{error && (
+							{(error || sqliteError) && (
 								<motion.p
 									key="error"
 									initial={{ opacity: 0, y: -4 }}
@@ -407,7 +455,7 @@ export function DropZone({ onFileLoad }: DropZoneProps) {
 									transition={{ duration: 0.18 }}
 									className="text-xs text-destructive font-[family-name:var(--font-geist-mono)]"
 								>
-									{error}
+									{error || sqliteError}
 								</motion.p>
 							)}
 						</AnimatePresence>
@@ -433,16 +481,32 @@ export function DropZone({ onFileLoad }: DropZoneProps) {
 							className={cn(
 								"group relative w-full aspect-[4/3] md:aspect-[16/10]",
 								"rounded-2xl border cursor-pointer",
-								"transition-all duration-300 ease-out",
+								"transition-all duration-500 ease-out",
 								"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
 								isDragging
-									? "border-primary/50 bg-primary/[0.04] shadow-[0_0_0_1px_var(--primary)]"
-									: "border-dashed border-border/50 hover:border-muted-foreground/25 hover:bg-muted/[0.06]",
+									? "border-primary/40 bg-primary/[0.03] shadow-[0_0_60px_-10px_var(--primary),0_0_0_1px_var(--primary)]"
+									: "border-dashed border-border/40 hover:border-muted-foreground/20 hover:bg-muted/[0.03] hover:shadow-[0_0_80px_-20px_var(--primary)]",
 								isLoading && "pointer-events-none",
 							)}
 						>
 							{/* Inner refraction edge */}
 							<div className="absolute inset-[1px] rounded-[calc(1rem-1px)] pointer-events-none border border-white/[0.03] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]" />
+
+							{/* Registration marks */}
+							<div className="absolute top-4 left-4 w-3 h-3 border-l border-t border-muted-foreground/[0.08] pointer-events-none" />
+							<div className="absolute top-4 right-4 w-3 h-3 border-r border-t border-muted-foreground/[0.08] pointer-events-none" />
+							<div className="absolute bottom-4 left-4 w-3 h-3 border-l border-b border-muted-foreground/[0.08] pointer-events-none" />
+							<div className="absolute bottom-4 right-4 w-3 h-3 border-r border-b border-muted-foreground/[0.08] pointer-events-none" />
+
+							{/* Inner grid pattern */}
+							<div
+								className="absolute inset-0 rounded-2xl pointer-events-none opacity-[0.012] dark:opacity-[0.02]"
+								aria-hidden
+								style={{
+									backgroundImage: "linear-gradient(currentColor 1px, transparent 1px), linear-gradient(90deg, currentColor 1px, transparent 1px)",
+									backgroundSize: "48px 48px",
+								}}
+							/>
 
 							{isLoading ? (
 								<div className="flex flex-col items-center justify-center gap-4 h-full">
@@ -472,10 +536,10 @@ export function DropZone({ onFileLoad }: DropZoneProps) {
 											damping: 22,
 										}}
 										className={cn(
-											"w-11 h-11 rounded-xl flex items-center justify-center transition-colors duration-200",
+											"w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300",
 											isDragging
-												? "bg-primary/15 text-primary"
-												: "bg-muted/40 text-muted-foreground group-hover:bg-muted group-hover:text-foreground",
+												? "bg-primary/15 text-primary shadow-[0_0_20px_-4px_var(--primary)]"
+												: "bg-muted/30 text-muted-foreground group-hover:bg-muted/60 group-hover:text-foreground group-hover:shadow-[0_0_30px_-8px_var(--primary)]",
 										)}
 									>
 										<ArrowUpFromLine className="w-5 h-5" />
@@ -493,8 +557,8 @@ export function DropZone({ onFileLoad }: DropZoneProps) {
 									</div>
 
 									{/* Format badges — staggered entrance */}
-									<div className="flex items-center gap-2 mt-1">
-										{[".json", ".jsonl", ".ndjson"].map((fmt, i) => (
+									<div className="flex items-center gap-2 mt-1 flex-wrap justify-center">
+										{[".json", ".jsonl", ".ndjson", ".sqlite", ".db"].map((fmt, i) => (
 											<motion.span
 												key={fmt}
 												initial={{ opacity: 0, y: 8 }}
@@ -505,7 +569,7 @@ export function DropZone({ onFileLoad }: DropZoneProps) {
 													stiffness: 300,
 													damping: 26,
 												}}
-												className="text-[10px] text-muted-foreground/50 font-[family-name:var(--font-geist-mono)] border border-border/40 px-2 py-0.5 rounded-sm"
+												className="text-[10px] text-muted-foreground/45 font-[family-name:var(--font-geist-mono)] border border-border/30 bg-muted/20 px-2 py-0.5 rounded-md"
 											>
 												{fmt}
 											</motion.span>
@@ -521,7 +585,7 @@ export function DropZone({ onFileLoad }: DropZoneProps) {
 			<input
 				ref={inputRef}
 				type="file"
-				accept=".jsonl,.json,.ndjson"
+				accept=".jsonl,.json,.ndjson,.sqlite,.db,.sqlite3"
 				onChange={handleFileChange}
 				className="hidden"
 				aria-label="Select a JSON or JSONL file"

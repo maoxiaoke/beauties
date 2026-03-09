@@ -250,6 +250,27 @@
 			],
 			"what-you-have-done": "Updated parser (lib/parse-jsonl.ts) with smart format detection: JSON array → each element becomes a record, single JSON object → one record, otherwise → JSONL line-by-line parsing. Updated drop zone text to 'Drop a JSON or JSONL file here'. File input accepts .json files. Tested with 14 Playwright tests covering arrays, single objects, and invalid JSON, all passing.",
 			"passes": true
+		},
+		{
+			"id": "F015",
+			"category": "feat",
+			"description": "SQLite file preview — drag-and-drop .sqlite/.db files and explore tables/data beautifully",
+			"details": [
+				"Use sql.js (WebAssembly SQLite) to parse .sqlite/.db files entirely client-side",
+				"Left sidebar: table list with row counts, active table highlighted",
+				"Main area: virtualized data grid using @tanstack/react-table + @tanstack/react-virtual",
+				"Top query bar: SQL query input with Run button and ⌘Enter shortcut",
+				"Data/Schema toggle: switch between data grid and CREATE TABLE statements",
+				"Column type indicators (INTEGER, TEXT, REAL, etc.) as colored badges",
+				"NULL values styled as italic gray chips, BLOB values as byte count badges",
+				"Smooth transitions when switching tables via Framer Motion",
+				"Status bar: table count, total rows, file size, load time",
+				"Error handling: invalid SQL shows error, corrupt files show message",
+				"New file button resets to drop zone",
+				"Drop zone updated to accept .sqlite, .db, .sqlite3 extensions"
+			],
+			"what-you-have-done": "Built full SQLite viewer using sql.js WASM. Created lib/parse-sqlite.ts (database opener, table info extractor, query executor), components/sqlite-viewer.tsx (sidebar, data grid, query bar, schema view). Updated drop-zone.tsx for binary file reading. Updated jsonl-viewer.tsx to detect SQLite files and branch. Added sql-wasm.wasm to public/, type declarations in types/sql.js.d.ts. Tested with 23 Playwright E2E tests covering file loading, sidebar, data grid, schema view, SQL queries, status bar, navigation, and console errors — all passing. 118 total tests pass (no regressions).",
+			"passes": true
 		}
 	],
 	"design-direction": {
