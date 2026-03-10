@@ -1,16 +1,18 @@
 "use client";
 
 import {
+	Braces,
 	Check,
 	ChevronLeft,
 	ChevronRight,
 	Copy,
 	Minimize2,
+	Undo2,
 	X,
 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ParsedRecord } from "@/lib/parse-jsonl";
-import { cn } from "@/lib/utils";
+import { cn, tryParseJsonString } from "@/lib/utils";
 
 interface RecordDetailProps {
 	record: ParsedRecord;
@@ -224,6 +226,87 @@ function SyntaxHighlightedJson({ text }: { text: string }) {
 	);
 }
 
+/** Renders a drillable string value — when clicked, expands to show parsed JSON */
+function DrillableStringValue({
+	rawQuoted,
+	trailingComma,
+}: { rawQuoted: string; trailingComma: string }) {
+	const [drilled, setDrilled] = useState(false);
+
+	// rawQuoted is the JSON-encoded string like "\"{ \\\"key\\\": \\\"val\\\" }\""
+	const parsedInner = useMemo(() => {
+		try {
+			const innerStr = JSON.parse(rawQuoted);
+			if (typeof innerStr === "string") {
+				return tryParseJsonString(innerStr);
+			}
+		} catch {}
+		return null;
+	}, [rawQuoted]);
+
+	if (!parsedInner) {
+		return (
+			<>
+				<span className="text-syntax-string">{rawQuoted}</span>
+				{trailingComma && (
+					<span className="text-syntax-bracket">{trailingComma}</span>
+				)}
+			</>
+		);
+	}
+
+	if (drilled) {
+		const formatted = JSON.stringify(parsedInner, null, 2);
+		return (
+			<span className="inline">
+				<button
+					type="button"
+					onClick={() => setDrilled(false)}
+					className="ml-0.5 mr-1 inline-flex items-center gap-0.5 px-1 py-px rounded text-[10px] bg-primary/10 text-primary hover:bg-primary/20 transition-colors align-middle"
+					title="Collapse back to string"
+				>
+					<Undo2 className="w-2.5 h-2.5" />
+					<span>str</span>
+				</button>
+				<span className="text-primary/20">{"/* drilled */"}</span>
+				{"\n"}
+				<SyntaxHighlightedJson text={formatted} />
+				{trailingComma && (
+					<span className="text-syntax-bracket">{trailingComma}</span>
+				)}
+			</span>
+		);
+	}
+
+	return (
+		<>
+			<span className="text-syntax-string">{rawQuoted}</span>
+			{trailingComma && (
+				<span className="text-syntax-bracket">{trailingComma}</span>
+			)}
+			<button
+				type="button"
+				onClick={() => setDrilled(true)}
+				className="ml-1 inline-flex items-center px-1 py-px rounded text-[10px] bg-primary/10 text-primary hover:bg-primary/20 transition-colors align-middle"
+				title="Drill down — parse as JSON"
+			>
+				<Braces className="w-3 h-3" />
+			</button>
+		</>
+	);
+}
+
+/** Check if a JSON-encoded string value contains valid JSON object/array */
+function isDrillableJsonString(rawQuoted: string): boolean {
+	try {
+		const innerStr = JSON.parse(rawQuoted);
+		if (typeof innerStr === "string") {
+			return tryParseJsonString(innerStr) !== null;
+		}
+	} catch {}
+	return false;
+}
+
 function HighlightLine({ line }: { line: string }) {
 	const segments: { text: string; className: string }[] = [];
 	let remaining = line;
@@ -254,9 +337,31 @@ function HighlightLine({ line }: { line: string }) {
 			continue;
 		}
 
-		// String value
+		// String value — check if it's a drillable JSON string
 		const strMatch = remaining.match(/^("(?:[^"\\]|\\.)*")(,?)/);
 		if (strMatch) {
+			// Flush accumulated segments, then render DrillableStringValue as a React element
+			const drillable = isDrillableJsonString(strMatch[1]);
+			if (drillable) {
+				// Flush current segments first
+				const flushed = [...segments];
+				segments.length = 0;
+				remaining = remaining.slice(strMatch[0].length);
+				return (
+					<>
+						{flushed.map((seg, idx) => (
+							<span key={idx} className={seg.className}>
+								{seg.text}
+							</span>
+						))}
+						<DrillableStringValue
+							rawQuoted={strMatch[1]}
+							trailingComma={strMatch[2]}
+						/>
+						<HighlightLine line={remaining} />
+					</>
+				);
+			}
 			segments.push({ text: strMatch[1], className: "text-syntax-string" });
 			if (strMatch[2]) {
 				segments.push({ text: strMatch[2], className: "text-syntax-bracket" });

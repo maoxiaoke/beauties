@@ -9,10 +9,10 @@ import {
 	useReactTable,
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { ArrowDown, ArrowUp, Inbox } from "lucide-react";
+import { ArrowDown, ArrowUp, Braces, Inbox, Undo2 } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import type { ParsedRecord } from "@/lib/parse-jsonl";
-import { cn } from "@/lib/utils";
+import { cn, tryParseJsonString } from "@/lib/utils";
 
 interface TableViewProps {
 	records: ParsedRecord[];
@@ -22,6 +22,59 @@ interface TableViewProps {
 }
 
 function CellValue({ value }: { value: unknown }) {
+	const [drilled, setDrilled] = useState(false);
+
+	const parsedJson = useMemo(
+		() => (typeof value === "string" ? tryParseJsonString(value) : null),
+		[value],
+	);
+
+	// When drilled, show the parsed value's chip representation
+	if (drilled && parsedJson) {
+		if (Array.isArray(parsedJson)) {
+			return (
+				<span className="inline-flex items-center gap-1">
+					<span className="inline-flex items-center px-1.5 py-px rounded text-[10px] bg-primary/10 text-primary font-[family-name:var(--font-geist-mono)]">
+						[{parsedJson.length}]
+					</span>
+					<button
+						type="button"
+						onClick={(e) => {
+							e.stopPropagation();
+							setDrilled(false);
+						}}
+						className="shrink-0 inline-flex items-center gap-0.5 px-1 py-px rounded text-[10px] bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+						title="Collapse back to string"
+					>
+						<Undo2 className="w-2.5 h-2.5" />
+					</button>
+				</span>
+			);
+		}
+		if (typeof parsedJson === "object" && parsedJson !== null) {
+			const keys = Object.keys(parsedJson);
+			return (
+				<span className="inline-flex items-center gap-1">
+					<span className="inline-flex items-center px-1.5 py-px rounded text-[10px] bg-primary/10 text-primary font-[family-name:var(--font-geist-mono)]">
+						{"{"}…{keys.length}
+						{"}"}
+					</span>
+					<button
+						type="button"
+						onClick={(e) => {
+							e.stopPropagation();
+							setDrilled(false);
+						}}
+						className="shrink-0 inline-flex items-center gap-0.5 px-1 py-px rounded text-[10px] bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+						title="Collapse back to string"
+					>
+						<Undo2 className="w-2.5 h-2.5" />
+					</button>
+				</span>
+			);
+		}
+	}
+
 	if (value === null || value === undefined) {
 		return <span className="text-syntax-null italic opacity-60">null</span>;
 	}
@@ -33,8 +86,23 @@ function CellValue({ value }: { value: unknown }) {
 	}
 	if (typeof value === "string") {
 		return (
-			<span className="text-syntax-string truncate block" title={value}>
-				{value}
+			<span className="inline-flex items-center gap-1 min-w-0 w-full">
+				<span className="text-syntax-string truncate" title={value}>
+					{value}
+				</span>
+				{parsedJson !== null && (
+					<button
+						type="button"
+						onClick={(e) => {
+							e.stopPropagation();
+							setDrilled(true);
+						}}
+						className="shrink-0 inline-flex items-center px-1 py-px rounded text-[10px] bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+						title="Drill down — parse as JSON"
+					>
+						<Braces className="w-2.5 h-2.5" />
+					</button>
+				)}
 			</span>
 		);
 	}

@@ -1,0 +1,3 @@
+{"id": 1, "name": "Alice", "config": "{\"theme\":\"dark\",\"lang\":\"en\"}"}
+{"id": 2, "name": "Bob", "metadata": "{\"tags\":[\"admin\",\"dev\"],\"count\":42}"}
+{"id": 3, "name": "Carol", "plain": "just a regular string"}

@@ -26,10 +26,16 @@ export function AppHeader({
 	return (
 		<header className="flex items-center justify-between px-4 h-11 border-b border-border bg-background/80 backdrop-blur-sm shrink-0">
 			<div className="flex items-center gap-3 min-w-0">
-				<div className="flex items-center gap-2 shrink-0">
+				<button
+					type="button"
+					onClick={onReset}
+					className="flex items-center gap-2 shrink-0 rounded-md px-1.5 py-1 -ml-1.5 hover:bg-muted transition-colors duration-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+					title="Back to home"
+					aria-label="Back to home"
+				>
 					<Braces className="w-3.5 h-3.5 text-primary" strokeWidth={2.5} />
 					<h1 className="text-[13px] font-semibold tracking-tight">Beauties</h1>
-				</div>
+				</button>
 				<div className="h-3.5 w-px bg-border shrink-0" />
 				<div className="flex items-center gap-1.5 text-xs text-muted-foreground min-w-0">
 					<FileText className="w-3 h-3 shrink-0" />
