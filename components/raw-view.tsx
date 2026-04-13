@@ -2,9 +2,11 @@
 
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Check, Copy, WrapText } from "lucide-react";
-import { useCallback, useRef, useState } from "react";
+import { type MutableRefObject, useCallback, useEffect, useRef, useState } from "react";
 import type { ParsedRecord } from "@/lib/parse-jsonl";
 import { cn } from "@/lib/utils";
+import { splitByQuery } from "./highlight-text";
+import type { ScrollToRecordFn } from "./jsonl-viewer";
 
 interface RawViewProps {
 	records: ParsedRecord[];
@@ -13,10 +15,35 @@ interface RawViewProps {
 	wordWrap: boolean;
 	onToggleWordWrap: () => void;
 	searchQuery: string;
+	currentMatchIndex: number;
+	scrollToRecordRef: MutableRefObject<ScrollToRecordFn | null>;
 }
 
-function SyntaxLine({ text, isError }: { text: string; isError: boolean }) {
+function SyntaxLine({
+	text,
+	isError,
+	searchQuery,
+}: { text: string; isError: boolean; searchQuery: string }) {
 	if (isError) {
+		if (searchQuery.trim()) {
+			const parts = splitByQuery(text, searchQuery);
+			return (
+				<span className="text-destructive">
+					{parts.map((p, i) =>
+						p.isMatch ? (
+							<mark
+								key={i}
+								className="bg-primary/25 text-primary rounded-sm px-px ring-1 ring-primary/20"
+							>
+								{p.text}
+							</mark>
+						) : (
+							<span key={i}>{p.text}</span>
+						),
+					)}
+				</span>
+			);
+		}
 		return <span className="text-destructive">{text}</span>;
 	}
 
@@ -102,13 +129,48 @@ function SyntaxLine({ text, isError }: { text: string; isError: boolean }) {
 		i++;
 	}
 
+	if (!searchQuery.trim()) {
+		return (
+			<>
+				{segments.map((seg, idx) => (
+					<span key={idx} className={seg.className}>
+						{seg.text}
+					</span>
+				))}
+			</>
+		);
+	}
+
+	// Overlay search highlights on top of syntax-colored segments
 	return (
 		<>
-			{segments.map((seg, idx) => (
-				<span key={idx} className={seg.className}>
-					{seg.text}
-				</span>
-			))}
+			{segments.map((seg, idx) => {
+				const parts = splitByQuery(seg.text, searchQuery);
+				const hasMatch = parts.some((p) => p.isMatch);
+				if (!hasMatch) {
+					return (
+						<span key={idx} className={seg.className}>
+							{seg.text}
+						</span>
+					);
+				}
+				return (
+					<span key={idx} className={seg.className}>
+						{parts.map((p, pi) =>
+							p.isMatch ? (
+								<mark
+									key={pi}
+									className="bg-primary/25 text-primary rounded-sm px-px ring-1 ring-primary/20"
+								>
+									{p.text}
+								</mark>
+							) : (
+								<span key={pi}>{p.text}</span>
+							),
+						)}
+					</span>
+				);
+			})}
 		</>
 	);
 }
@@ -119,6 +181,9 @@ export function RawView({
 	onSelectLine,
 	wordWrap,
 	onToggleWordWrap,
+	searchQuery,
+	currentMatchIndex,
+	scrollToRecordRef,
 }: RawViewProps) {
 	const parentRef = useRef<HTMLDivElement>(null);
 	const [copied, setCopied] = useState(false);
@@ -132,6 +197,23 @@ export function RawView({
 		estimateSize: () => (wordWrap ? 48 : 24),
 		overscan: 30,
 	});
+
+	// Register scroll-to function so parent can scroll to a specific record
+	useEffect(() => {
+		scrollToRecordRef.current = (recordIndex: number) => {
+			// In raw view, the virtualizer index matches the record's position in the full array
+			virtualizer.scrollToIndex(recordIndex, { align: "center" });
+		};
+		return () => {
+			scrollToRecordRef.current = null;
+		};
+	}, [virtualizer, scrollToRecordRef]);
+
+	// The record index of the current navigated match
+	const currentMatchRecordIndex =
+		searchQuery.trim() && currentMatchIndex < filteredRecords.length
+			? filteredRecords[currentMatchIndex]?.index
+			: null;
 
 	const handleCopyAll = useCallback(() => {
 		const text = records.map((r) => r.raw).join("\n");
@@ -207,6 +289,9 @@ export function RawView({
 						const isFiltered =
 							filteredRecords !== records && !filteredSet.has(record.index);
 						const isSelected = selectedLine === record.index;
+						const isCurrentMatch =
+							currentMatchRecordIndex !== null &&
+							record.index === currentMatchRecordIndex;
 
 						return (
 							<div
@@ -214,8 +299,9 @@ export function RawView({
 								className={cn(
 									"absolute left-0 flex cursor-pointer transition-colors duration-75",
 									isFiltered && "opacity-15",
-									isSelected && "bg-primary/8",
-									!isSelected && "hover:bg-muted/40",
+									isCurrentMatch && "bg-primary/10 ring-1 ring-inset ring-primary/20",
+									isSelected && !isCurrentMatch && "bg-primary/8",
+									!isSelected && !isCurrentMatch && "hover:bg-muted/40",
 								)}
 								style={{
 									top: virtualRow.start,
@@ -250,7 +336,7 @@ export function RawView({
 									)}
 									style={{ lineHeight: `${virtualRow.size}px` }}
 								>
-									<SyntaxLine text={record.raw} isError={isError} />
+									<SyntaxLine text={record.raw} isError={isError} searchQuery={searchQuery} />
 								</pre>
 							</div>
 						);

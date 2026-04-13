@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ParseResult } from "@/lib/parse-jsonl";
 import { parseJsonl } from "@/lib/parse-jsonl";
 import type { SqliteDatabase } from "@/lib/parse-sqlite";
@@ -21,6 +21,8 @@ export interface FileInfo {
 	size: number;
 	rawText: string;
 }
+
+export type ScrollToRecordFn = (recordIndex: number) => void;
 
 type ViewType = "table" | "tree" | "raw";
 
@@ -45,8 +47,12 @@ export function JsonlViewer() {
 	const [selectedRecord, setSelectedRecord] = useState<number | null>(null);
 	const [detailOpen, setDetailOpen] = useState(false);
 	const [searchQuery, setSearchQuery] = useState("");
+	const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
 	const [wordWrap, setWordWrap] = useState(false);
 	const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
+
+	// Ref to allow views to register their scroll-to function
+	const scrollToRecordRef = useRef<ScrollToRecordFn | null>(null);
 
 	// Persist view preference
 	useEffect(() => {
@@ -65,6 +71,7 @@ export function JsonlViewer() {
 			setSelectedRecord(null);
 			setDetailOpen(false);
 			setSearchQuery("");
+			setCurrentMatchIndex(0);
 			// Clear SQLite state
 			if (sqliteDb) {
 				sqliteDb.db.close();
@@ -105,6 +112,7 @@ export function JsonlViewer() {
 		setSelectedRecord(null);
 		setDetailOpen(false);
 		setSearchQuery("");
+		setCurrentMatchIndex(0);
 		if (sqliteDb) {
 			sqliteDb.db.close();
 			setSqliteDb(null);
@@ -124,6 +132,39 @@ export function JsonlViewer() {
 
 	const matchCount = filteredRecords.length;
 	const totalCount = parseResult?.records.length ?? 0;
+
+	// Reset match index when query changes and scroll to first match
+	const handleSearchChange = useCallback(
+		(newQuery: string) => {
+			setSearchQuery(newQuery);
+			setCurrentMatchIndex(0);
+		},
+		[],
+	);
+
+	// Auto-scroll to first match when filtered results change
+	useEffect(() => {
+		if (searchQuery.trim() && filteredRecords.length > 0 && scrollToRecordRef.current) {
+			const target = filteredRecords[currentMatchIndex];
+			if (target) {
+				scrollToRecordRef.current(target.index);
+			}
+		}
+	}, [searchQuery, filteredRecords, currentMatchIndex]);
+
+	// Navigate between matches — scroll is handled by the effect above
+	const handleMatchNavigate = useCallback(
+		(direction: "prev" | "next") => {
+			if (matchCount === 0) return;
+			setCurrentMatchIndex((prev) => {
+				if (direction === "next") {
+					return prev + 1 >= matchCount ? 0 : prev + 1;
+				}
+				return prev - 1 < 0 ? matchCount - 1 : prev - 1;
+			});
+		},
+		[matchCount],
+	);
 
 	// Record selection
 	const handleSelectRecord = useCallback((index: number) => {
@@ -178,6 +219,7 @@ export function JsonlViewer() {
 					setDetailOpen(false);
 				} else if (searchQuery) {
 					setSearchQuery("");
+					setCurrentMatchIndex(0);
 				} else if (showKeyboardHelp) {
 					setShowKeyboardHelp(false);
 				}
@@ -253,9 +295,11 @@ export function JsonlViewer() {
 				<ViewSwitcher view={view} onViewChange={setView} />
 				<SearchBar
 					query={searchQuery}
-					onChange={setSearchQuery}
+					onChange={handleSearchChange}
 					matchCount={matchCount}
 					totalCount={totalCount}
+					currentMatchIndex={currentMatchIndex}
+					onNavigate={handleMatchNavigate}
 				/>
 			</div>
 
@@ -266,6 +310,8 @@ export function JsonlViewer() {
 						columns={parseResult.columns}
 						onSelectRecord={handleSelectRecord}
 						searchQuery={searchQuery}
+						currentMatchIndex={currentMatchIndex}
+						scrollToRecordRef={scrollToRecordRef}
 					/>
 				)}
 				{view === "tree" && (
@@ -282,6 +328,8 @@ export function JsonlViewer() {
 						wordWrap={wordWrap}
 						onToggleWordWrap={() => setWordWrap((v) => !v)}
 						searchQuery={searchQuery}
+						currentMatchIndex={currentMatchIndex}
+						scrollToRecordRef={scrollToRecordRef}
 					/>
 				)}
 			</div>

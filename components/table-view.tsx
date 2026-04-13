@@ -10,18 +10,25 @@ import {
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { ArrowDown, ArrowUp, Braces, Inbox, Undo2 } from "lucide-react";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { type MutableRefObject, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ParsedRecord } from "@/lib/parse-jsonl";
 import { cn, tryParseJsonString } from "@/lib/utils";
+import { HighlightText } from "./highlight-text";
+import type { ScrollToRecordFn } from "./jsonl-viewer";
 
 interface TableViewProps {
 	records: ParsedRecord[];
 	columns: string[];
 	onSelectRecord: (index: number) => void;
 	searchQuery: string;
+	currentMatchIndex: number;
+	scrollToRecordRef: MutableRefObject<ScrollToRecordFn | null>;
 }
 
-function CellValue({ value }: { value: unknown }) {
+function CellValue({
+	value,
+	searchQuery,
+}: { value: unknown; searchQuery: string }) {
 	const [drilled, setDrilled] = useState(false);
 
 	const parsedJson = useMemo(
@@ -76,20 +83,34 @@ function CellValue({ value }: { value: unknown }) {
 	}
 
 	if (value === null || value === undefined) {
-		return <span className="text-syntax-null italic opacity-60">null</span>;
+		return (
+			<span className="text-syntax-null italic opacity-60">
+				<HighlightText text="null" query={searchQuery} />
+			</span>
+		);
 	}
 	if (typeof value === "boolean") {
-		return <span className="text-syntax-boolean">{String(value)}</span>;
+		return (
+			<span className="text-syntax-boolean">
+				<HighlightText text={String(value)} query={searchQuery} />
+			</span>
+		);
 	}
 	if (typeof value === "number") {
-		return <span className="text-syntax-number tabular-nums">{value}</span>;
+		return (
+			<span className="text-syntax-number tabular-nums">
+				<HighlightText text={String(value)} query={searchQuery} />
+			</span>
+		);
 	}
 	if (typeof value === "string") {
 		return (
 			<span className="inline-flex items-center gap-1 min-w-0 w-full">
-				<span className="text-syntax-string truncate" title={value}>
-					{value}
-				</span>
+				<HighlightText
+					text={value}
+					query={searchQuery}
+					className="text-syntax-string truncate"
+				/>
 				{parsedJson !== null && (
 					<button
 						type="button"
@@ -129,6 +150,9 @@ export function TableView({
 	records,
 	columns: columnKeys,
 	onSelectRecord,
+	searchQuery,
+	currentMatchIndex,
+	scrollToRecordRef,
 }: TableViewProps) {
 	const parentRef = useRef<HTMLDivElement>(null);
 	const [sorting, setSorting] = useState<SortingState>([]);
@@ -155,7 +179,9 @@ export function TableView({
 			header: key,
 			size: Math.max(100, Math.min(300, key.length * 10 + 40)),
 			minSize: 60,
-			cell: ({ getValue }) => <CellValue value={getValue()} />,
+			cell: ({ getValue }) => (
+				<CellValue value={getValue()} searchQuery={searchQuery} />
+			),
 			sortingFn: (rowA, rowB, columnId) => {
 				const a = rowA.original.data?.[columnId];
 				const b = rowB.original.data?.[columnId];
@@ -168,7 +194,7 @@ export function TableView({
 		}));
 
 		return [rowNumCol, ...dataCols];
-	}, [columnKeys]);
+	}, [columnKeys, searchQuery]);
 
 	const table = useReactTable({
 		data: records,
@@ -189,6 +215,25 @@ export function TableView({
 		estimateSize: () => 34,
 		overscan: 20,
 	});
+
+	// Register scroll-to function so parent can scroll to a specific record
+	useEffect(() => {
+		scrollToRecordRef.current = (recordIndex: number) => {
+			const rowIdx = rows.findIndex((r) => r.original.index === recordIndex);
+			if (rowIdx !== -1) {
+				virtualizer.scrollToIndex(rowIdx, { align: "center" });
+			}
+		};
+		return () => {
+			scrollToRecordRef.current = null;
+		};
+	}, [rows, virtualizer, scrollToRecordRef]);
+
+	// The record index of the current navigated match
+	const currentMatchRecordIndex =
+		searchQuery.trim() && currentMatchIndex < records.length
+			? records[currentMatchIndex]?.index
+			: null;
 
 	const handleRowClick = useCallback(
 		(record: ParsedRecord) => {
@@ -225,9 +270,16 @@ export function TableView({
 									onClick={header.column.getToggleSortingHandler()}
 								>
 									<span className="truncate font-[family-name:var(--font-geist-mono)]">
-										{flexRender(
-											header.column.columnDef.header,
-											header.getContext(),
+										{typeof header.column.columnDef.header === "string" ? (
+											<HighlightText
+												text={header.column.columnDef.header}
+												query={searchQuery}
+											/>
+										) : (
+											flexRender(
+												header.column.columnDef.header,
+												header.getContext(),
+											)
 										)}
 									</span>
 									{header.column.getIsSorted() === "asc" && (
@@ -261,6 +313,9 @@ export function TableView({
 					{virtualizer.getVirtualItems().map((virtualRow) => {
 						const row = rows[virtualRow.index];
 						const isError = !!row.original.error;
+						const isCurrentMatch =
+							currentMatchRecordIndex !== null &&
+							row.original.index === currentMatchRecordIndex;
 						return (
 							<div
 								key={row.id}
@@ -268,6 +323,7 @@ export function TableView({
 									"absolute left-0 flex items-center cursor-pointer transition-colors duration-75",
 									virtualRow.index % 2 === 0 ? "bg-transparent" : "bg-muted/20",
 									isError && "bg-destructive/5",
+									isCurrentMatch && "bg-primary/10 ring-1 ring-inset ring-primary/20",
 									"hover:bg-accent/60",
 								)}
 								style={{
