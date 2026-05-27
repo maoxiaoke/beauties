@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ParseResult } from "@/lib/parse-jsonl";
 import { parseJsonl } from "@/lib/parse-jsonl";
+import { parseParquet } from "@/lib/parse-parquet";
 import type { SqliteDatabase } from "@/lib/parse-sqlite";
 import { isSqliteFile, openSqliteDatabase } from "@/lib/parse-sqlite";
 import { DropZone } from "./drop-zone";
@@ -37,6 +38,9 @@ export function JsonlViewer() {
 	const [sqliteFileSize, setSqliteFileSize] = useState(0);
 	const [sqliteLoadTime, setSqliteLoadTime] = useState(0);
 	const [sqliteError, setSqliteError] = useState<string | null>(null);
+
+	// Parquet error state (parquet rows are folded into parseResult, no extra viewer)
+	const [parquetError, setParquetError] = useState<string | null>(null);
 
 	const [view, setView] = useState<ViewType>(() => {
 		if (typeof window !== "undefined") {
@@ -76,6 +80,38 @@ export function JsonlViewer() {
 			if (sqliteDb) {
 				sqliteDb.db.close();
 				setSqliteDb(null);
+			}
+		},
+		[sqliteDb],
+	);
+
+	const handleParquetLoad = useCallback(
+		async (name: string, size: number, buffer: ArrayBuffer) => {
+			setParquetError(null);
+			const start = performance.now();
+			try {
+				const result = await parseParquet(buffer);
+				const elapsed = performance.now() - start;
+				// Stash a synthetic raw text for status bar / raw view: pretty-printed JSONL
+				const rawText = result.records
+					.map((r) => r.raw)
+					.join("\n");
+				// Clear SQLite state
+				if (sqliteDb) {
+					sqliteDb.db.close();
+					setSqliteDb(null);
+				}
+				setFile({ name, size, rawText });
+				setParseResult(result);
+				setParseTime(elapsed);
+				setSelectedRecord(null);
+				setDetailOpen(false);
+				setSearchQuery("");
+				setCurrentMatchIndex(0);
+			} catch (e) {
+				setParquetError(
+					e instanceof Error ? e.message : "Failed to parse parquet file",
+				);
 			}
 		},
 		[sqliteDb],
@@ -121,6 +157,7 @@ export function JsonlViewer() {
 		setSqliteFileSize(0);
 		setSqliteLoadTime(0);
 		setSqliteError(null);
+		setParquetError(null);
 	}, [sqliteDb]);
 
 	// Search filtering
@@ -253,7 +290,9 @@ export function JsonlViewer() {
 			<DropZone
 				onFileLoad={handleFileLoad}
 				onSqliteLoad={handleSqliteLoad}
+				onParquetLoad={handleParquetLoad}
 				sqliteError={sqliteError}
+				parquetError={parquetError}
 			/>
 		);
 	}

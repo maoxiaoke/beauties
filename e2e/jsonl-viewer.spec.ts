@@ -770,7 +770,10 @@ test.describe("Accessibility", () => {
 	test("file input has accessible label", async ({ page }) => {
 		await page.goto("/");
 		const input = page.locator('input[type="file"]');
-		await expect(input).toHaveAttribute("aria-label", "Select a JSON or JSONL file");
+		await expect(input).toHaveAttribute(
+			"aria-label",
+			"Select a JSON, JSONL, Parquet, or SQLite file",
+		);
 	});
 
 	test("view tabs have proper ARIA roles", async ({ page }) => {

@@ -271,6 +271,23 @@
 			],
 			"what-you-have-done": "Built full SQLite viewer using sql.js WASM. Created lib/parse-sqlite.ts (database opener, table info extractor, query executor), components/sqlite-viewer.tsx (sidebar, data grid, query bar, schema view). Updated drop-zone.tsx for binary file reading. Updated jsonl-viewer.tsx to detect SQLite files and branch. Added sql-wasm.wasm to public/, type declarations in types/sql.js.d.ts. Tested with 23 Playwright E2E tests covering file loading, sidebar, data grid, schema view, SQL queries, status bar, navigation, and console errors — all passing. 118 total tests pass (no regressions).",
 			"passes": true
+		},
+		{
+			"id": "F016",
+			"category": "feat",
+			"description": "Parquet file preview — drag-and-drop .parquet files and explore rows in the existing Table/Tree/Raw views",
+			"details": [
+				"Use hyparquet (pure JS, zero WASM, ~30KB) to parse .parquet files entirely client-side",
+				"Each parquet row maps to a ParsedRecord, so all existing views (Table, Tree, Raw, Detail, Search) work unchanged",
+				"Handle BigInt: preserve precision by emitting safe-range values as numbers and out-of-range values as strings",
+				"Handle Date/Uint8Array/nested STRUCT/LIST values via toJsonSafe recursion",
+				"Drop zone accepts .parquet extension; format badge shown alongside .json/.jsonl/.sqlite/.db",
+				"Raw view shows pretty JSONL (one JSON object per row) since parquet has no native raw text representation",
+				"Parquet parsing errors surface in the drop zone error region",
+				"Reuses readAsArrayBuffer pipeline shared with SQLite path"
+			],
+			"what-you-have-done": "Added hyparquet dependency. Created lib/parse-parquet.ts (ArrayBuffer → ParseResult, with BigInt/Date/Uint8Array safe-conversion). Extended drop-zone.tsx with onParquetLoad callback and isParquetExtension detection; updated accept attribute and added .parquet badge. Extended jsonl-viewer.tsx with handleParquetLoad that feeds parsed rows through the same Table/Tree/Raw pipeline (no separate viewer needed, since parquet is a single flat table). Generated 3 fixture parquet files (people, tiny, numeric) via scripts/generate-parquet-fixtures.mjs using hyparquet-writer. Wrote 12 Playwright E2E tests covering drop zone integration, file loading, schema-derived columns, BigInt rendering, all 3 views, search filtering, reset flow, and console-error checks — all passing. 1 pre-existing fix to the JSONL aria-label test. Build passes.",
+			"passes": true
 		}
 	],
 	"design-direction": {

@@ -13,7 +13,9 @@ import { cn } from "@/lib/utils";
 interface DropZoneProps {
 	onFileLoad: (name: string, size: number, text: string) => void;
 	onSqliteLoad?: (name: string, size: number, buffer: ArrayBuffer) => void;
+	onParquetLoad?: (name: string, size: number, buffer: ArrayBuffer) => void;
 	sqliteError?: string | null;
+	parquetError?: string | null;
 }
 
 // ─── Phrases that cycle through the typewriter ────────────────────────────────
@@ -152,7 +154,17 @@ function isSqliteExtension(name: string): boolean {
 	return lower.endsWith(".sqlite") || lower.endsWith(".db") || lower.endsWith(".sqlite3");
 }
 
-export function DropZone({ onFileLoad, onSqliteLoad, sqliteError }: DropZoneProps) {
+function isParquetExtension(name: string): boolean {
+	return name.toLowerCase().endsWith(".parquet");
+}
+
+export function DropZone({
+	onFileLoad,
+	onSqliteLoad,
+	onParquetLoad,
+	sqliteError,
+	parquetError,
+}: DropZoneProps) {
 	const [isDragging, setIsDragging] = useState(false);
 	const [isLoading, setIsLoading] = useState(false);
 	const [progress, setProgress] = useState(0);
@@ -166,8 +178,10 @@ export function DropZone({ onFileLoad, onSqliteLoad, sqliteError }: DropZoneProp
 			setIsLoading(true);
 			setProgress(0);
 
-			// SQLite files need binary reading
-			if (isSqliteExtension(file.name) && onSqliteLoad) {
+			// SQLite & Parquet files need binary reading
+			const isSqlite = isSqliteExtension(file.name) && onSqliteLoad;
+			const isParquet = isParquetExtension(file.name) && onParquetLoad;
+			if (isSqlite || isParquet) {
 				const reader = new FileReader();
 				reader.onprogress = (e) => {
 					if (e.lengthComputable) {
@@ -182,7 +196,11 @@ export function DropZone({ onFileLoad, onSqliteLoad, sqliteError }: DropZoneProp
 						return;
 					}
 					setIsLoading(false);
-					onSqliteLoad(file.name, file.size, buffer);
+					if (isParquet) {
+						onParquetLoad?.(file.name, file.size, buffer);
+					} else {
+						onSqliteLoad?.(file.name, file.size, buffer);
+					}
 				};
 				reader.onerror = () => {
 					setError("Failed to read file");
@@ -218,7 +236,7 @@ export function DropZone({ onFileLoad, onSqliteLoad, sqliteError }: DropZoneProp
 
 			reader.readAsText(file);
 		},
-		[onFileLoad, onSqliteLoad],
+		[onFileLoad, onSqliteLoad, onParquetLoad],
 	);
 
 	const handleDrop = useCallback(
@@ -446,7 +464,7 @@ export function DropZone({ onFileLoad, onSqliteLoad, sqliteError }: DropZoneProp
 
 						{/* Error */}
 						<AnimatePresence>
-							{(error || sqliteError) && (
+							{(error || sqliteError || parquetError) && (
 								<motion.p
 									key="error"
 									initial={{ opacity: 0, y: -4 }}
@@ -455,7 +473,7 @@ export function DropZone({ onFileLoad, onSqliteLoad, sqliteError }: DropZoneProp
 									transition={{ duration: 0.18 }}
 									className="text-xs text-destructive font-[family-name:var(--font-geist-mono)]"
 								>
-									{error || sqliteError}
+									{error || sqliteError || parquetError}
 								</motion.p>
 							)}
 						</AnimatePresence>
@@ -558,7 +576,7 @@ export function DropZone({ onFileLoad, onSqliteLoad, sqliteError }: DropZoneProp
 
 									{/* Format badges — staggered entrance */}
 									<div className="flex items-center gap-2 mt-1 flex-wrap justify-center">
-										{[".json", ".jsonl", ".ndjson", ".sqlite", ".db"].map((fmt, i) => (
+										{[".json", ".jsonl", ".ndjson", ".parquet", ".sqlite", ".db"].map((fmt, i) => (
 											<motion.span
 												key={fmt}
 												initial={{ opacity: 0, y: 8 }}
@@ -585,10 +603,10 @@ export function DropZone({ onFileLoad, onSqliteLoad, sqliteError }: DropZoneProp
 			<input
 				ref={inputRef}
 				type="file"
-				accept=".jsonl,.json,.ndjson,.sqlite,.db,.sqlite3"
+				accept=".jsonl,.json,.ndjson,.parquet,.sqlite,.db,.sqlite3"
 				onChange={handleFileChange}
 				className="hidden"
-				aria-label="Select a JSON or JSONL file"
+				aria-label="Select a JSON, JSONL, Parquet, or SQLite file"
 			/>
 		</div>
 	);
