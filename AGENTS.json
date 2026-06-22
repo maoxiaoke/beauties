@@ -288,6 +288,24 @@
 			],
 			"what-you-have-done": "Added hyparquet dependency. Created lib/parse-parquet.ts (ArrayBuffer → ParseResult, with BigInt/Date/Uint8Array safe-conversion). Extended drop-zone.tsx with onParquetLoad callback and isParquetExtension detection; updated accept attribute and added .parquet badge. Extended jsonl-viewer.tsx with handleParquetLoad that feeds parsed rows through the same Table/Tree/Raw pipeline (no separate viewer needed, since parquet is a single flat table). Generated 3 fixture parquet files (people, tiny, numeric) via scripts/generate-parquet-fixtures.mjs using hyparquet-writer. Wrote 12 Playwright E2E tests covering drop zone integration, file loading, schema-derived columns, BigInt rendering, all 3 views, search filtering, reset flow, and console-error checks — all passing. 1 pre-existing fix to the JSONL aria-label test. Build passes.",
 			"passes": true
+		},
+		{
+			"id": "F017",
+			"category": "feat",
+			"description": "Source editor — manually correct content that can't be parsed (and edit valid files) in a CodeMirror editor",
+			"details": [
+				"Editing target is the whole file's raw text (not a single record)",
+				"Loading a JSON/JSONL file with parse errors takes over the full screen with a fix editor — the Table/Tree/Raw views are gated until the document parses cleanly (0 errors)",
+				"Valid files can be edited manually via a new Header 'Edit' button",
+				"CodeMirror 6 editor with JSON syntax highlighting (wired to the app's --syntax-* OKLCH vars), line numbers, and an error lint gutter",
+				"Live validation (lib/validate-source.ts mirrors parseJsonl's error semantics) with a 'N errors remaining' counter and a 'Jump to next error' control",
+				"The proceed action ('View data' in fix mode / 'Apply' in edit mode) is enabled only when there are zero errors",
+				"Fix-takeover escape hatch is 'New file' only — no 'view with errors'; manual edit adds a 'Cancel' (and Escape) that discards changes and returns to the prior data",
+				"Applying re-parses the edited text and replaces the data source (status bar, Copy all, all views reflect edits)",
+				"SQLite/Parquet (binary) paths are unaffected — the editor is JSON/JSONL text only"
+			],
+			"what-you-have-done": "Added CodeMirror 6 deps (codemirror, @codemirror/lang-json, @codemirror/lint, @codemirror/language, @codemirror/state, @codemirror/view, @lezer/highlight). Created lib/validate-source.ts (character-offset diagnostics mirroring parseJsonl, kept in sync so diagnostics.length===0 ⟺ errorCount===0). Created components/source-editor.tsx (full-screen CodeMirror with app-themed JSON highlight, lint gutter, live remaining-error count, jump-to-next-error, fix/edit modes, Apply gated at 0 errors). Wired components/jsonl-viewer.tsx: auto fix-takeover when parse errors load, Header 'Edit' for manual editing, Apply re-parses and replaces state, Cancel/Escape exits manual edit, parquet/sqlite/reset clear editing. Added Header 'Edit' button (components/header.tsx) and fixed ToolbarButton Label-in-Name a11y (aria-label now contains visible text, tooltip separate). Removed a dead isSqliteFile import. Updated existing malformed-handling E2E tests (F012 block, scattered tests in jsonl-viewer.spec.ts and new-features.spec.ts) to the new takeover behavior. Wrote 11 new E2E tests (e2e/source-editor.spec.ts) covering fix-takeover, gating, fix→view, jump-to-error, manual edit, Cancel/Escape, Apply-disabled-on-error, Apply persistence, and console errors — all passing. tsc + build pass.",
+			"passes": true
 		}
 	],
 	"design-direction": {

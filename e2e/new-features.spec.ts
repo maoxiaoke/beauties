@@ -1,5 +1,5 @@
-import { test, expect, type Page } from "@playwright/test";
 import * as path from "node:path";
+import { expect, type Page, test } from "@playwright/test";
 
 const fixturesDir = path.resolve(__dirname, "fixtures");
 
@@ -44,8 +44,12 @@ test.describe("Clipboard paste – Paste via button", () => {
 		await page.goto("/");
 
 		// Write JSONL data to clipboard
-		const jsonlData = '{"id": 1, "name": "ClipAlice"}\n{"id": 2, "name": "ClipBob"}';
-		await page.evaluate((text) => navigator.clipboard.writeText(text), jsonlData);
+		const jsonlData =
+			'{"id": 1, "name": "ClipAlice"}\n{"id": 2, "name": "ClipBob"}';
+		await page.evaluate(
+			(text) => navigator.clipboard.writeText(text),
+			jsonlData,
+		);
 
 		// Click paste button
 		await page.getByRole("button", { name: /Paste/ }).click();
@@ -70,7 +74,10 @@ test.describe("Clipboard paste – Paste via button", () => {
 			{ id: 2, city: "LA" },
 			{ id: 3, city: "Chicago" },
 		]);
-		await page.evaluate((text) => navigator.clipboard.writeText(text), jsonArray);
+		await page.evaluate(
+			(text) => navigator.clipboard.writeText(text),
+			jsonArray,
+		);
 
 		await page.getByRole("button", { name: /Paste/ }).click();
 		await page.waitForSelector("header", { timeout: 10_000 });
@@ -86,7 +93,10 @@ test.describe("Clipboard paste – Paste via button", () => {
 		await page.goto("/");
 
 		const singleObj = JSON.stringify({ name: "Solo", score: 99 });
-		await page.evaluate((text) => navigator.clipboard.writeText(text), singleObj);
+		await page.evaluate(
+			(text) => navigator.clipboard.writeText(text),
+			singleObj,
+		);
 
 		await page.getByRole("button", { name: /Paste/ }).click();
 		await page.waitForSelector("header", { timeout: 10_000 });
@@ -116,20 +126,22 @@ test.describe("Clipboard paste – Paste via button", () => {
 		await context.grantPermissions(["clipboard-read", "clipboard-write"]);
 		await page.goto("/");
 
-		const malformed = '{"id": 1, "name": "Valid"}\nthis is bad\n{"id": 2, "name": "AlsoValid"}';
-		await page.evaluate((text) => navigator.clipboard.writeText(text), malformed);
+		const malformed =
+			'{"id": 1, "name": "Valid"}\nthis is bad\n{"id": 2, "name": "AlsoValid"}';
+		await page.evaluate(
+			(text) => navigator.clipboard.writeText(text),
+			malformed,
+		);
 
 		await page.getByRole("button", { name: /Paste/ }).click();
 		await page.waitForSelector("header", { timeout: 10_000 });
-		// Should load with errors
-		await expect(page.locator("header").getByText("3 records")).toBeVisible();
-		await expect(page.locator("header").getByText("1 error")).toBeVisible();
+		// Malformed clipboard content opens the fix editor.
+		await expect(page.getByTestId("error-count")).toHaveText(
+			"1 error remaining",
+		);
 	});
 
-	test("pasted data renders in all three views", async ({
-		page,
-		context,
-	}) => {
+	test("pasted data renders in all three views", async ({ page, context }) => {
 		await context.grantPermissions(["clipboard-read", "clipboard-write"]);
 		await page.goto("/");
 
@@ -155,7 +167,8 @@ test.describe("Clipboard paste – Paste via button", () => {
 		await context.grantPermissions(["clipboard-read", "clipboard-write"]);
 		await page.goto("/");
 
-		const data = '{"id": 1, "name": "PastedAlice", "role": "engineer"}\n{"id": 2, "name": "PastedBob", "role": "designer"}';
+		const data =
+			'{"id": 1, "name": "PastedAlice", "role": "engineer"}\n{"id": 2, "name": "PastedBob", "role": "designer"}';
 		await page.evaluate((text) => navigator.clipboard.writeText(text), data);
 
 		await page.getByRole("button", { name: /Paste/ }).click();
@@ -293,8 +306,8 @@ test.describe("JSON file – Invalid JSON", () => {
 	test("handles invalid .json file gracefully", async ({ page }) => {
 		await page.goto("/");
 		await loadFile(page, "invalid.json");
-		// Should fall through to JSONL parsing and show error
-		await expect(page.locator("header").getByText("1 error")).toBeVisible();
+		// Falls through to JSONL parsing, finds the error, opens the fix editor.
+		await expect(page.getByText("Fix errors to continue")).toBeVisible();
 	});
 });
 
@@ -307,11 +320,12 @@ test.describe("JSON file – Backward compatibility", () => {
 		await expect(page.getByText("Alice").first()).toBeVisible();
 	});
 
-	test("malformed .jsonl files still show errors", async ({ page }) => {
+	test("malformed .jsonl files open the fix editor", async ({ page }) => {
 		await page.goto("/");
 		await loadFile(page, "malformed.jsonl");
-		await expect(page.locator("header").getByText("2 errors")).toBeVisible();
-		await expect(page.locator("header").getByText("5 records")).toBeVisible();
+		await expect(page.getByTestId("error-count")).toHaveText(
+			"2 errors remaining",
+		);
 	});
 
 	test("large .jsonl files still load with virtualization", async ({
@@ -326,13 +340,9 @@ test.describe("JSON file – Backward compatibility", () => {
 });
 
 test.describe("JSON file – Drop zone text updated", () => {
-	test("drop zone shows updated text for JSON and JSONL", async ({
-		page,
-	}) => {
+	test("drop zone shows updated text for JSON and JSONL", async ({ page }) => {
 		await page.goto("/");
-		await expect(
-			page.getByText("Drop your file here"),
-		).toBeVisible();
+		await expect(page.getByText("Drop your file here")).toBeVisible();
 	});
 });
 
@@ -347,18 +357,20 @@ test.describe("JSON string drill-down – Tree View", () => {
 		await loadFile(page, "stringified-json.jsonl");
 		await page.getByRole("tab", { name: /Tree/ }).click();
 		// The config field contains stringified JSON — should have a drill button
-		const drillButton = page.locator('button[title="Drill down — parse as JSON"]').first();
+		const drillButton = page
+			.locator('button[title="Drill down — parse as JSON"]')
+			.first();
 		await expect(drillButton).toBeVisible();
 	});
 
-	test("drill button expands stringified JSON into tree", async ({
-		page,
-	}) => {
+	test("drill button expands stringified JSON into tree", async ({ page }) => {
 		await page.goto("/");
 		await loadFile(page, "stringified-json.jsonl");
 		await page.getByRole("tab", { name: /Tree/ }).click();
 		// Click drill button on the config field
-		const drillButton = page.locator('button[title="Drill down — parse as JSON"]').first();
+		const drillButton = page
+			.locator('button[title="Drill down — parse as JSON"]')
+			.first();
 		await drillButton.click();
 		// Should now show the parsed keys from the drilled JSON
 		await expect(page.getByText('"theme"').first()).toBeVisible();
@@ -370,14 +382,20 @@ test.describe("JSON string drill-down – Tree View", () => {
 		await loadFile(page, "stringified-json.jsonl");
 		await page.getByRole("tab", { name: /Tree/ }).click();
 		// Drill down
-		const drillButton = page.locator('button[title="Drill down — parse as JSON"]').first();
+		const drillButton = page
+			.locator('button[title="Drill down — parse as JSON"]')
+			.first();
 		await drillButton.click();
 		await expect(page.getByText('"theme"').first()).toBeVisible();
 		// Un-drill
-		const undrillButton = page.locator('button[title="Collapse back to string"]').first();
+		const undrillButton = page
+			.locator('button[title="Collapse back to string"]')
+			.first();
 		await undrillButton.click();
 		// Should show the original stringified JSON again
-		await expect(page.getByText('{"theme":"dark","lang":"en"}').first()).toBeVisible();
+		await expect(
+			page.getByText('{"theme":"dark","lang":"en"}').first(),
+		).toBeVisible();
 	});
 
 	test("no drill button for regular strings", async ({ page }) => {
@@ -391,7 +409,9 @@ test.describe("JSON string drill-down – Tree View", () => {
 		// Record 3 should not have a drill button for the "plain" field
 		await expect(page.getByText("just a regular string").first()).toBeVisible();
 		// The plain string should NOT have a drill button next to it
-		const drillButtons = page.locator('button[title="Drill down — parse as JSON"]');
+		const drillButtons = page.locator(
+			'button[title="Drill down — parse as JSON"]',
+		);
 		await expect(drillButtons).toHaveCount(0);
 	});
 
@@ -400,7 +420,9 @@ test.describe("JSON string drill-down – Tree View", () => {
 		await loadFile(page, "stringified-json.jsonl");
 		await page.getByRole("tab", { name: /Tree/ }).click();
 		// Drill into the config field
-		const drillButton = page.locator('button[title="Drill down — parse as JSON"]').first();
+		const drillButton = page
+			.locator('button[title="Drill down — parse as JSON"]')
+			.first();
 		await drillButton.click();
 		await page.waitForTimeout(300);
 		await page.screenshot({
@@ -416,7 +438,9 @@ test.describe("JSON string drill-down – Table View", () => {
 		await page.goto("/");
 		await loadFile(page, "stringified-json.jsonl");
 		// Table view is default
-		const drillButton = page.locator('button[title="Drill down — parse as JSON"]').first();
+		const drillButton = page
+			.locator('button[title="Drill down — parse as JSON"]')
+			.first();
 		await expect(drillButton).toBeVisible();
 	});
 
@@ -426,21 +450,29 @@ test.describe("JSON string drill-down – Table View", () => {
 		await page.goto("/");
 		await loadFile(page, "stringified-json.jsonl");
 		// Drill down in table cell
-		const drillButton = page.locator('button[title="Drill down — parse as JSON"]').first();
+		const drillButton = page
+			.locator('button[title="Drill down — parse as JSON"]')
+			.first();
 		await drillButton.click();
 		// Should show a chip-like representation with key count
-		const undrillButton = page.locator('button[title="Collapse back to string"]').first();
+		const undrillButton = page
+			.locator('button[title="Collapse back to string"]')
+			.first();
 		await expect(undrillButton).toBeVisible();
 		// Un-drill
 		await undrillButton.click();
 		// Drill button should reappear
-		await expect(page.locator('button[title="Drill down — parse as JSON"]').first()).toBeVisible();
+		await expect(
+			page.locator('button[title="Drill down — parse as JSON"]').first(),
+		).toBeVisible();
 	});
 
 	test("table drill-down screenshot", async ({ page }) => {
 		await page.goto("/");
 		await loadFile(page, "stringified-json.jsonl");
-		const drillButton = page.locator('button[title="Drill down — parse as JSON"]').first();
+		const drillButton = page
+			.locator('button[title="Drill down — parse as JSON"]')
+			.first();
 		await drillButton.click();
 		await page.waitForTimeout(300);
 		await page.screenshot({
@@ -458,7 +490,9 @@ test.describe("JSON string drill-down – Record Detail", () => {
 		const dialog = page.locator("[role='dialog']");
 		await expect(dialog).toBeVisible();
 		// Should have a drill button in the detail panel
-		const drillButton = dialog.locator('button[title="Drill down — parse as JSON"]').first();
+		const drillButton = dialog
+			.locator('button[title="Drill down — parse as JSON"]')
+			.first();
 		await expect(drillButton).toBeVisible();
 	});
 
@@ -469,10 +503,14 @@ test.describe("JSON string drill-down – Record Detail", () => {
 		const dialog = page.locator("[role='dialog']");
 		await expect(dialog).toBeVisible();
 		// Drill down
-		const drillButton = dialog.locator('button[title="Drill down — parse as JSON"]').first();
+		const drillButton = dialog
+			.locator('button[title="Drill down — parse as JSON"]')
+			.first();
 		await drillButton.click();
 		// Should show the un-drill button
-		const undrillButton = dialog.locator('button[title="Collapse back to string"]').first();
+		const undrillButton = dialog
+			.locator('button[title="Collapse back to string"]')
+			.first();
 		await expect(undrillButton).toBeVisible();
 	});
 
@@ -482,7 +520,9 @@ test.describe("JSON string drill-down – Record Detail", () => {
 		await page.getByText("Alice").first().click();
 		const dialog = page.locator("[role='dialog']");
 		await expect(dialog).toBeVisible();
-		const drillButton = dialog.locator('button[title="Drill down — parse as JSON"]').first();
+		const drillButton = dialog
+			.locator('button[title="Drill down — parse as JSON"]')
+			.first();
 		await drillButton.click();
 		await page.waitForTimeout(300);
 		await page.screenshot({
@@ -505,19 +545,25 @@ test.describe("JSON string drill-down – Console errors", () => {
 
 		// Tree view drill
 		await page.getByRole("tab", { name: /Tree/ }).click();
-		const drillBtn = page.locator('button[title="Drill down — parse as JSON"]').first();
+		const drillBtn = page
+			.locator('button[title="Drill down — parse as JSON"]')
+			.first();
 		await drillBtn.click();
 		await page.waitForTimeout(200);
 
 		// Un-drill
-		const undrillBtn = page.locator('button[title="Collapse back to string"]').first();
+		const undrillBtn = page
+			.locator('button[title="Collapse back to string"]')
+			.first();
 		await undrillBtn.click();
 		await page.waitForTimeout(200);
 
 		// Table view drill
 		await page.getByRole("tab", { name: /Table/ }).click();
 		await page.waitForTimeout(200);
-		const tableDrillBtn = page.locator('button[title="Drill down — parse as JSON"]').first();
+		const tableDrillBtn = page
+			.locator('button[title="Drill down — parse as JSON"]')
+			.first();
 		await tableDrillBtn.click();
 		await page.waitForTimeout(200);
 
@@ -555,9 +601,7 @@ test.describe("JSON file – Console errors", () => {
 		expect(realErrors).toEqual([]);
 	});
 
-	test("no console errors loading single object .json", async ({
-		page,
-	}) => {
+	test("no console errors loading single object .json", async ({ page }) => {
 		const consoleErrors: string[] = [];
 		page.on("console", (msg) => {
 			if (msg.type() === "error") {
