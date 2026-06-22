@@ -1,6 +1,14 @@
 "use client";
 
-import { Braces, FileText, Keyboard, Moon, Sun, Upload } from "lucide-react";
+import {
+	Braces,
+	FileText,
+	Keyboard,
+	Moon,
+	Pencil,
+	Sun,
+	Upload,
+} from "lucide-react";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 import type { FileInfo } from "./jsonl-viewer";
@@ -11,6 +19,7 @@ interface AppHeaderProps {
 	errorCount: number;
 	parseTime: number;
 	onReset: () => void;
+	onEdit: () => void;
 	onToggleKeyboardHelp: () => void;
 }
 
@@ -19,6 +28,7 @@ export function AppHeader({
 	recordCount,
 	errorCount,
 	onReset,
+	onEdit,
 	onToggleKeyboardHelp,
 }: AppHeaderProps) {
 	const { theme, setTheme } = useTheme();
@@ -58,6 +68,10 @@ export function AppHeader({
 			</div>
 
 			<div className="flex items-center gap-0.5 shrink-0">
+				<HeaderButton onClick={onEdit} label="Edit source text">
+					<Pencil className="w-3.5 h-3.5" />
+					<span className="hidden sm:inline text-xs">Edit</span>
+				</HeaderButton>
 				<HeaderButton onClick={onReset} label="Load a different file">
 					<Upload className="w-3.5 h-3.5" />
 					<span className="hidden sm:inline text-xs">New file</span>

@@ -5,13 +5,14 @@ import type { ParseResult } from "@/lib/parse-jsonl";
 import { parseJsonl } from "@/lib/parse-jsonl";
 import { parseParquet } from "@/lib/parse-parquet";
 import type { SqliteDatabase } from "@/lib/parse-sqlite";
-import { isSqliteFile, openSqliteDatabase } from "@/lib/parse-sqlite";
+import { openSqliteDatabase } from "@/lib/parse-sqlite";
 import { DropZone } from "./drop-zone";
 import { AppHeader } from "./header";
 import { KeyboardHelp } from "./keyboard-help";
 import { RawView } from "./raw-view";
 import { RecordDetail } from "./record-detail";
 import { SearchBar } from "./search-bar";
+import { SourceEditor } from "./source-editor";
 import { SqliteViewer } from "./sqlite-viewer";
 import { TableView } from "./table-view";
 import { TreeView } from "./tree-view";
@@ -55,6 +56,13 @@ export function JsonlViewer() {
 	const [wordWrap, setWordWrap] = useState(false);
 	const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
 
+	// Source editor: "fix" auto-takeover (parse errors block the viewer) or
+	// manual "edit" of an already-valid file. editorSeq forces a fresh mount
+	// per session so CodeMirror reloads the current text.
+	const [editing, setEditing] = useState(false);
+	const [editorMode, setEditorMode] = useState<"fix" | "edit">("edit");
+	const [editorSeq, setEditorSeq] = useState(0);
+
 	// Ref to allow views to register their scroll-to function
 	const scrollToRecordRef = useRef<ScrollToRecordFn | null>(null);
 
@@ -81,9 +89,42 @@ export function JsonlViewer() {
 				sqliteDb.db.close();
 				setSqliteDb(null);
 			}
+			// Parse errors take over the screen with the fix editor.
+			if (result.errorCount > 0) {
+				setEditorMode("fix");
+				setEditing(true);
+				setEditorSeq((s) => s + 1);
+			} else {
+				setEditing(false);
+			}
 		},
 		[sqliteDb],
 	);
+
+	// Manual edit of an already-loaded file (Header "Edit" button).
+	const handleEnterEdit = useCallback(() => {
+		setEditorMode("edit");
+		setEditing(true);
+		setEditorSeq((s) => s + 1);
+	}, []);
+
+	// Apply edited source: re-parse and replace the data. The editor only
+	// allows this when the document has zero parse errors.
+	const handleEditorApply = useCallback((text: string) => {
+		const start = performance.now();
+		const result = parseJsonl(text);
+		const elapsed = performance.now() - start;
+		setFile((f) => (f ? { ...f, rawText: text } : f));
+		setParseResult(result);
+		setParseTime(elapsed);
+		setSelectedRecord(null);
+		setDetailOpen(false);
+		setSearchQuery("");
+		setCurrentMatchIndex(0);
+		setEditing(false);
+	}, []);
+
+	const handleEditorCancel = useCallback(() => setEditing(false), []);
 
 	const handleParquetLoad = useCallback(
 		async (name: string, size: number, buffer: ArrayBuffer) => {
@@ -93,9 +134,7 @@ export function JsonlViewer() {
 				const result = await parseParquet(buffer);
 				const elapsed = performance.now() - start;
 				// Stash a synthetic raw text for status bar / raw view: pretty-printed JSONL
-				const rawText = result.records
-					.map((r) => r.raw)
-					.join("\n");
+				const rawText = result.records.map((r) => r.raw).join("\n");
 				// Clear SQLite state
 				if (sqliteDb) {
 					sqliteDb.db.close();
@@ -108,6 +147,7 @@ export function JsonlViewer() {
 				setDetailOpen(false);
 				setSearchQuery("");
 				setCurrentMatchIndex(0);
+				setEditing(false);
 			} catch (e) {
 				setParquetError(
 					e instanceof Error ? e.message : "Failed to parse parquet file",
@@ -127,6 +167,7 @@ export function JsonlViewer() {
 				// Clear JSON state
 				setFile(null);
 				setParseResult(null);
+				setEditing(false);
 				// Set SQLite state
 				setSqliteDb(db);
 				setSqliteFileName(name);
@@ -149,6 +190,7 @@ export function JsonlViewer() {
 		setDetailOpen(false);
 		setSearchQuery("");
 		setCurrentMatchIndex(0);
+		setEditing(false);
 		if (sqliteDb) {
 			sqliteDb.db.close();
 			setSqliteDb(null);
@@ -171,17 +213,18 @@ export function JsonlViewer() {
 	const totalCount = parseResult?.records.length ?? 0;
 
 	// Reset match index when query changes and scroll to first match
-	const handleSearchChange = useCallback(
-		(newQuery: string) => {
-			setSearchQuery(newQuery);
-			setCurrentMatchIndex(0);
-		},
-		[],
-	);
+	const handleSearchChange = useCallback((newQuery: string) => {
+		setSearchQuery(newQuery);
+		setCurrentMatchIndex(0);
+	}, []);
 
 	// Auto-scroll to first match when filtered results change
 	useEffect(() => {
-		if (searchQuery.trim() && filteredRecords.length > 0 && scrollToRecordRef.current) {
+		if (
+			searchQuery.trim() &&
+			filteredRecords.length > 0 &&
+			scrollToRecordRef.current
+		) {
 			const target = filteredRecords[currentMatchIndex];
 			if (target) {
 				scrollToRecordRef.current(target.index);
@@ -227,6 +270,15 @@ export function JsonlViewer() {
 	useEffect(() => {
 		const handler = (e: KeyboardEvent) => {
 			const meta = e.metaKey || e.ctrlKey;
+
+			// While editing, suspend viewer shortcuts. Escape cancels a manual
+			// edit; the fix-takeover has no Escape exit (only New file / fix).
+			if (editing) {
+				if (editorMode === "edit" && e.key === "Escape") {
+					setEditing(false);
+				}
+				return;
+			}
 
 			// ⌘1/2/3 - switch views
 			if (meta && e.key === "1") {
@@ -282,7 +334,15 @@ export function JsonlViewer() {
 
 		window.addEventListener("keydown", handler);
 		return () => window.removeEventListener("keydown", handler);
-	}, [file, detailOpen, searchQuery, showKeyboardHelp, handleNavigateRecord]);
+	}, [
+		file,
+		detailOpen,
+		searchQuery,
+		showKeyboardHelp,
+		handleNavigateRecord,
+		editing,
+		editorMode,
+	]);
 
 	// No file loaded - show drop zone
 	if ((!file || !parseResult) && !sqliteDb) {
@@ -314,6 +374,22 @@ export function JsonlViewer() {
 	// (the early returns above cover all null cases)
 	if (!file || !parseResult) return null;
 
+	// Source editor takes over the full screen (auto on parse errors, or via
+	// the Header "Edit" button).
+	if (editing) {
+		return (
+			<SourceEditor
+				key={editorSeq}
+				initialText={file.rawText}
+				fileName={file.name}
+				mode={editorMode}
+				onApply={handleEditorApply}
+				onCancel={handleEditorCancel}
+				onNewFile={handleReset}
+			/>
+		);
+	}
+
 	const selectedData =
 		selectedRecord !== null
 			? parseResult.records.find((r) => r.index === selectedRecord)
@@ -327,6 +403,7 @@ export function JsonlViewer() {
 				errorCount={parseResult.errorCount}
 				parseTime={parseTime}
 				onReset={handleReset}
+				onEdit={handleEnterEdit}
 				onToggleKeyboardHelp={() => setShowKeyboardHelp((v) => !v)}
 			/>
 

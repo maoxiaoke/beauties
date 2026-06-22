@@ -10,6 +10,12 @@
 		"format": "biome format --write"
 	},
 	"dependencies": {
+		"@codemirror/lang-json": "^6.0.2",
+		"@codemirror/language": "^6.12.3",
+		"@codemirror/lint": "^6.9.7",
+		"@codemirror/state": "^6.6.0",
+		"@codemirror/view": "^6.43.1",
+		"@lezer/highlight": "^1.2.3",
 		"@radix-ui/react-dialog": "^1.1.15",
 		"@radix-ui/react-scroll-area": "^1.2.10",
 		"@radix-ui/react-slot": "^1.2.4",
@@ -19,6 +25,7 @@
 		"@tanstack/react-virtual": "^3.13.6",
 		"class-variance-authority": "^0.7.1",
 		"clsx": "^2.1.1",
+		"codemirror": "^6.0.2",
 		"framer-motion": "^12.34.3",
 		"geist": "^1.7.0",
 		"hyparquet": "^1.26.0",

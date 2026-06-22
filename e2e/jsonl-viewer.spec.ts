@@ -1,6 +1,6 @@
-import { test, expect, type Page } from "@playwright/test";
-import * as path from "node:path";
 import * as fs from "node:fs";
+import * as path from "node:path";
+import { expect, type Page, test } from "@playwright/test";
 
 const fixturesDir = path.resolve(__dirname, "fixtures");
 
@@ -25,9 +25,7 @@ test.describe("F002 – File upload", () => {
 	test("shows drop zone on initial load", async ({ page }) => {
 		await page.goto("/");
 		await expect(page.getByText("Drop your file here")).toBeVisible();
-		await expect(
-			page.getByText("or click to browse"),
-		).toBeVisible();
+		await expect(page.getByText("or click to browse")).toBeVisible();
 		// Stats section is visible
 		await expect(page.getByText("browser")).toBeVisible();
 	});
@@ -40,11 +38,14 @@ test.describe("F002 – File upload", () => {
 		await expect(page.locator("header").getByText("3 records")).toBeVisible();
 	});
 
-	test("shows error count for malformed data", async ({ page }) => {
+	test("malformed data opens the fix editor", async ({ page }) => {
 		await page.goto("/");
 		await loadFile(page, "malformed.jsonl");
-		// Should show error count in header
-		await expect(page.locator("header").getByText("2 errors")).toBeVisible();
+		// Parse errors now take over the screen with the source editor.
+		await expect(page.getByText("Fix errors to continue")).toBeVisible();
+		await expect(page.getByTestId("error-count")).toHaveText(
+			"2 errors remaining",
+		);
 	});
 
 	test("handles file with single record", async ({ page }) => {
@@ -168,14 +169,16 @@ test.describe("F004 – Tree view", () => {
 		await expect(page.getByText("Copied").first()).toBeVisible();
 	});
 
-	test("shows error state for malformed records", async ({ page }) => {
+	test("malformed records surface the offending text in the editor", async ({
+		page,
+	}) => {
 		await page.goto("/");
 		await loadFile(page, "malformed.jsonl");
-		await page.getByRole("tab", { name: /Tree/ }).click();
-		// Navigate to the malformed record (index 1)
-		await page.getByLabel("Next record").click();
-		// Should show error message
-		await expect(page.getByText(/Malformed JSON/)).toBeVisible();
+		// The editor takes over and shows the raw (malformed) source.
+		await expect(page.getByText("Fix errors to continue")).toBeVisible();
+		await expect(page.locator(".cm-content")).toContainText(
+			"this is not valid json",
+		);
 	});
 
 	test("tree view screenshot", async ({ page }) => {
@@ -254,9 +257,10 @@ test.describe("F006 – View switching", () => {
 
 		// Switch to tree
 		await page.getByRole("tab", { name: /Tree/ }).click();
-		await expect(
-			page.getByRole("tab", { name: /Tree/ }),
-		).toHaveAttribute("aria-selected", "true");
+		await expect(page.getByRole("tab", { name: /Tree/ })).toHaveAttribute(
+			"aria-selected",
+			"true",
+		);
 
 		// Switch to raw
 		await page.getByRole("tab", { name: /Raw/ }).click();
@@ -269,9 +273,10 @@ test.describe("F006 – View switching", () => {
 	test("switches views via keyboard shortcuts", async ({ page }) => {
 		// Press ⌘2 for tree view
 		await page.keyboard.press("Meta+2");
-		await expect(
-			page.getByRole("tab", { name: /Tree/ }),
-		).toHaveAttribute("aria-selected", "true");
+		await expect(page.getByRole("tab", { name: /Tree/ })).toHaveAttribute(
+			"aria-selected",
+			"true",
+		);
 
 		// Press ⌘3 for raw view
 		await page.keyboard.press("Meta+3");
@@ -282,9 +287,10 @@ test.describe("F006 – View switching", () => {
 
 		// Press ⌘1 for table view
 		await page.keyboard.press("Meta+1");
-		await expect(
-			page.getByRole("tab", { name: /Table/ }),
-		).toHaveAttribute("aria-selected", "true");
+		await expect(page.getByRole("tab", { name: /Table/ })).toHaveAttribute(
+			"aria-selected",
+			"true",
+		);
 	});
 });
 
@@ -301,10 +307,11 @@ test.describe("F007 – Search & filter", () => {
 		const searchInput = page.locator("#search-input");
 		await searchInput.fill("Alice");
 		await page.waitForTimeout(300);
-		// Should show match count "1/3" near the search bar
+		// "Alice" matches one record → the counter reads "1/1"
+		// (current match / total matches).
 		const searchContainer = searchInput.locator("..");
-		await expect(searchContainer.getByText(/1/)).toBeVisible();
-		await expect(searchContainer.getByText(/3/)).toBeVisible();
+		const counter = searchContainer.locator("span.tabular-nums").first();
+		await expect(counter).toHaveText("1/1");
 	});
 
 	test("clear button resets search", async ({ page }) => {
@@ -349,9 +356,7 @@ test.describe("F008 – Record detail panel", () => {
 		await expect(dialog.getByText("Record 1")).toBeVisible();
 	});
 
-	test("navigates between records with prev/next buttons", async ({
-		page,
-	}) => {
+	test("navigates between records with prev/next buttons", async ({ page }) => {
 		await page.getByText("Alice").first().click();
 		await expect(
 			page.locator("[role='dialog']").getByText("Record 1"),
@@ -557,47 +562,41 @@ test.describe("F011 – Keyboard shortcuts", () => {
 // ---------------------------------------------------------------------------
 // F012: Error handling
 // ---------------------------------------------------------------------------
+// Error handling now means: parse errors take over the screen with the
+// source editor, and the user must fix them (or load a new file). The detailed
+// fix / manual-edit coverage lives in source-editor.spec.ts.
 test.describe("F012 – Error handling", () => {
-	test("shows error count for malformed lines", async ({ page }) => {
-		await page.goto("/");
-		await loadFile(page, "malformed.jsonl");
-		// Header should show errors
-		await expect(page.locator("header").getByText("2 errors")).toBeVisible();
-	});
-
-	test("malformed records are visible in table with error styling", async ({
+	test("malformed lines open the editor with a remaining-error count", async ({
 		page,
 	}) => {
 		await page.goto("/");
 		await loadFile(page, "malformed.jsonl");
-		// 5 records total (3 valid + 2 malformed)
-		await expect(page.locator("header").getByText("5 records")).toBeVisible();
+		await expect(page.getByTestId("error-count")).toHaveText(
+			"2 errors remaining",
+		);
 	});
 
-	test("tree view shows error details for malformed records", async ({
+	test("the data views are gated behind fixing the errors", async ({
 		page,
 	}) => {
 		await page.goto("/");
 		await loadFile(page, "malformed.jsonl");
-		await page.getByRole("tab", { name: /Tree/ }).click();
-		// Go to second record (malformed)
-		await page.getByLabel("Next record").click();
-		await expect(page.getByText(/Malformed JSON/)).toBeVisible();
+		// No view tabs while the fix editor is up.
+		await expect(page.getByRole("tab", { name: /Table/ })).toHaveCount(0);
+		await expect(page.getByRole("tab", { name: /Tree/ })).toHaveCount(0);
+		// "View data" is disabled until there are zero errors.
+		await expect(
+			page.getByRole("button", { name: "View data" }),
+		).toBeDisabled();
 	});
 
-	test("detail panel shows error for malformed records", async ({
+	test("the fix editor only offers New file as an escape (no Cancel)", async ({
 		page,
 	}) => {
 		await page.goto("/");
 		await loadFile(page, "malformed.jsonl");
-		// Navigate to tree view and select the malformed record, then check detail
-		await page.getByRole("tab", { name: /Tree/ }).click();
-		// Navigate to the second record which is malformed
-		await page.getByLabel("Next record").click();
-		// Should show malformed JSON error
-		await expect(page.getByText(/Malformed JSON/)).toBeVisible();
-		// Also verify the raw text is shown
-		await expect(page.getByText("this is not valid json")).toBeVisible();
+		await expect(page.getByRole("button", { name: /New file/ })).toBeVisible();
+		await expect(page.getByRole("button", { name: "Cancel" })).toHaveCount(0);
 	});
 
 	test("error handling screenshot", async ({ page }) => {
@@ -614,9 +613,7 @@ test.describe("F012 – Error handling", () => {
 // Data types & nested objects
 // ---------------------------------------------------------------------------
 test.describe("Data types rendering", () => {
-	test("renders all JSON data types correctly in table", async ({
-		page,
-	}) => {
+	test("renders all JSON data types correctly in table", async ({ page }) => {
 		await page.goto("/");
 		await loadFile(page, "types.jsonl");
 		// String value
@@ -654,7 +651,9 @@ test.describe("Performance – large dataset", () => {
 		await loadFile(page, "large.jsonl");
 		const elapsed = Date.now() - start;
 		// Should show 1,000 records in header
-		await expect(page.locator("header").getByText("1,000 records")).toBeVisible();
+		await expect(
+			page.locator("header").getByText("1,000 records"),
+		).toBeVisible();
 		// Loading + parsing should complete in under 5 seconds
 		expect(elapsed).toBeLessThan(5000);
 	});
@@ -663,9 +662,7 @@ test.describe("Performance – large dataset", () => {
 		await page.goto("/");
 		await loadFile(page, "large.jsonl");
 		// The table should be virtualized (not all 1000 rows in DOM)
-		const visibleRows = page.locator(
-			'div[style*="position: absolute"]',
-		);
+		const visibleRows = page.locator('div[style*="position: absolute"]');
 		const count = await visibleRows.count();
 		// With virtualization, only a subset of rows should be rendered
 		expect(count).toBeLessThan(200);
@@ -750,10 +747,8 @@ test.describe("No console errors", () => {
 		await loadFile(page, "malformed.jsonl");
 		await page.waitForTimeout(500);
 
-		// Switch through views
-		await page.getByRole("tab", { name: /Tree/ }).click();
-		await page.waitForTimeout(300);
-		await page.getByRole("tab", { name: /Raw/ }).click();
+		// Malformed data opens the editor; exercise the jump-to-error control.
+		await page.getByRole("button", { name: /Next error/ }).click();
 		await page.waitForTimeout(300);
 
 		const realErrors = consoleErrors.filter(
@@ -789,12 +784,8 @@ test.describe("Accessibility", () => {
 		await page.goto("/");
 		await loadFile(page, "small.jsonl");
 		// Header buttons should have labels
-		await expect(
-			page.getByLabel("Load a different file"),
-		).toBeVisible();
-		await expect(
-			page.getByLabel("Keyboard shortcuts (?)"),
-		).toBeVisible();
+		await expect(page.getByLabel("Load a different file")).toBeVisible();
+		await expect(page.getByLabel("Keyboard shortcuts (?)")).toBeVisible();
 		await expect(page.getByLabel("Toggle theme (⌘D)")).toBeVisible();
 	});
 
