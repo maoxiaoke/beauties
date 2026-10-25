@@ -306,6 +306,17 @@
 			],
 			"what-you-have-done": "Added CodeMirror 6 deps (codemirror, @codemirror/lang-json, @codemirror/lint, @codemirror/language, @codemirror/state, @codemirror/view, @lezer/highlight). Created lib/validate-source.ts (character-offset diagnostics mirroring parseJsonl, kept in sync so diagnostics.length===0 ⟺ errorCount===0). Created components/source-editor.tsx (full-screen CodeMirror with app-themed JSON highlight, lint gutter, live remaining-error count, jump-to-next-error, fix/edit modes, Apply gated at 0 errors). Wired components/jsonl-viewer.tsx: auto fix-takeover when parse errors load, Header 'Edit' for manual editing, Apply re-parses and replaces state, Cancel/Escape exits manual edit, parquet/sqlite/reset clear editing. Added Header 'Edit' button (components/header.tsx) and fixed ToolbarButton Label-in-Name a11y (aria-label now contains visible text, tooltip separate). Removed a dead isSqliteFile import. Updated existing malformed-handling E2E tests (F012 block, scattered tests in jsonl-viewer.spec.ts and new-features.spec.ts) to the new takeover behavior. Wrote 11 new E2E tests (e2e/source-editor.spec.ts) covering fix-takeover, gating, fix→view, jump-to-error, manual edit, Cancel/Escape, Apply-disabled-on-error, Apply persistence, and console errors — all passing. tsc + build pass.",
 			"passes": true
+		},
+		{
+			"id": "F019",
+			"category": "design",
+			"description": "Landing page polish using landing-page-design",
+			"details": [
+				"Keep local file loading and clipboard flows unchanged; polish landing page only",
+				"Use readable typography, flat neutral surfaces, one primary browse action, an explicitly labeled example preview, and responsive layouts"
+			],
+			"what-you-have-done": "Installed and applied landing-page-design plus its redesign companion. Extracted scoped landing presentation; removed cycling copy and decorative gradient blobs; added clear file-opening hierarchy, example table, three-step explanation, local-processing message, keyboard focus, and reduced-motion support. Visually checked desktop, mobile, and light/dark themes in Ego Lite; no horizontal overflow at 1440px or 390px. Compared before/after with odiff. TypeScript and scoped Biome checks passed; 12 Playwright file-opening and clipboard tests passed.",
+			"passes": true
 		}
 	],
 	"design-direction": {
