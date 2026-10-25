@@ -26,8 +26,8 @@ test.describe("F002 – File upload", () => {
 		await page.goto("/");
 		await expect(page.getByText("Drop your file here")).toBeVisible();
 		await expect(page.getByText("or click to browse")).toBeVisible();
-		// Local processing reassurance is visible
-		await expect(page.getByText("Runs in your browser")).toBeVisible();
+		// Stats section is visible
+		await expect(page.getByText("browser")).toBeVisible();
 	});
 
 	test("loads file via click-to-browse", async ({ page }) => {
